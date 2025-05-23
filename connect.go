@@ -8,7 +8,8 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-func main() {
+func connect() {
+
 	// opening connection
 	connStr := os.Getenv("POSTGRES_URL")
 	conn, err := pgx.Connect(context.Background(), connStr);

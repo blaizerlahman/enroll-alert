@@ -48,15 +48,15 @@ func getSectionInfo(term string, subject string, courseCode string) []Enrollment
 
 	url := fmt.Sprintf("https://public.enroll.wisc.edu/api/search/v1/enrollmentPackages/%s/%s/%s", term, subject, courseCode)
 
-	// generate random user-agent 
-	userAgent := uarand.GetRandom()
-
 	// create GET request
 	request, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		fmt.Printf("Error while creating GET request: %s\n", err)
 		return nil
 	}
+
+	// generate random user-agent 
+	userAgent := uarand.GetRandom()
 
 	// set headers with random user-agent and specified course term/subject
 	request.Header.Set("User-Agent", userAgent)
@@ -71,7 +71,7 @@ func getSectionInfo(term string, subject string, courseCode string) []Enrollment
 	// send request
 	response, err := client.Do(request)
 	if err != nil {
-		fmt.Printf("Error parsing response: %s\n", err)
+		fmt.Printf("Error sending request: %s\n", err)
 		return nil
 	}
 	defer response.Body.Close()
@@ -87,7 +87,7 @@ func getSectionInfo(term string, subject string, courseCode string) []Enrollment
 
 	// parse and structure response
 	if err := json.Unmarshal(body, &sections); err != nil {
-		fmt.Printf("Error with json unmarshall: %s\n", err)
+		fmt.Printf("Error with json unmarshal: %s\n", err)
 		return nil
 	}
 

@@ -8,7 +8,7 @@ func main() {
 
 	connect()
 
-	newScrape(1262, []string{"COMP SCI 300", "MATH 221"})
+	newScrape("1262", []string{"COMP SCI 300", "MATH 221"})
 
 	courses := courseInfoScrape("1262", "266", []string{"024795"})
 	for _, course := range courses {

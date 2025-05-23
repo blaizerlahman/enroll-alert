@@ -10,7 +10,25 @@ import (
 	"github.com/corpix/uarand"
 )
 
+// structure of each course package returned by API
+type CoursePackage struct {
+	CourseCode  string  `json:"courseID"`
+	CatalogNum  string  `json:"catalogNumber"`
+
+	// structure of subject section
+	Subject struct {
+		SubjectCode  string `json:"subjectCode"`
+		ShortDesc    string `json:"shortDescription"`
+	} `json:"subject"`
+} 
+
+// structure of overall response
+type CourseResponse struct {
+	Hits []CoursePackage  `json:"hits"`
+}
+
 // getReferrer appends course page URL with encoded course name 
+// returns encoded course page URL to use as referrer
 func getReferrer(term string, courseName string) string {
 
 	base := fmt.Sprintf("https://public.enroll.wisc.edu/search?term=%s&keywords=", term)
@@ -22,7 +40,9 @@ func getReferrer(term string, courseName string) string {
 	return base + keywords
 }
 
-func checkClassStatus(term string, courseName string) string {	
+// getCourseSubjectCode retrieves course and subject codes from UW course enrollment API
+// returns CoursePackage containing the course and subject code for a given class, nil if error
+func getCourseSubjectCode(term string, courseName string) (*CoursePackage, error) {	
 
 	// create payload body
 	payload := map[string]interface{}{
@@ -46,7 +66,7 @@ func checkClassStatus(term string, courseName string) string {
 	reqBody, err := json.Marshal(payload)
 	if err != nil {
 		fmt.Printf("Error with creating request reqBody: %s\n", err) 
-		//return nil
+		return nil, err
 	}
 
 	url := "https://public.enroll.wisc.edu/api/search/v1"
@@ -55,7 +75,7 @@ func checkClassStatus(term string, courseName string) string {
 	request, err := http.NewRequest("POST", url, bytes.NewBuffer(reqBody))
 	if err != nil {
 		fmt.Printf("Error while creating POST request: %s\n", err)
-		//return nil
+		return nil, err
 	}
 
 	// generate random user-agent
@@ -76,44 +96,64 @@ func checkClassStatus(term string, courseName string) string {
 	response, err := client.Do(request)
 	if err != nil {
 		fmt.Printf("Error sending request: %s\n", err)
-		//return nil
+		return nil, err
 	}
 	defer response.Body.Close()
 
 	// read json response
 	respBody, _ := ioutil.ReadAll(response.Body)
-	fmt.Println("Response body:\n", string(respBody))
 
-	var result map[string]interface{}
-	if err := json.Unmarshal(respBody, &result); err != nil {
+	// parse and structure response as a list of CoursePackages
+	var respStruct CourseResponse
+	if err := json.Unmarshal(respBody, &respStruct); err != nil {
 		fmt.Printf("Error with json unmarshal: %s\n", err)
-		//return nil
+		return nil, err
 	}
 
-// 	hits, ok := result["hits"].([]interface{})
-// 	if !ok || len(hits) == 0 {
-// 		return false, nil
-// 	}
-//
-// 	for _, hit := range hits {
-// 		hitMap := hit.(map[string]interface{})
-// 		if hitMap["courseDesignation"] == courseName {
-// 			prereqs := hitMap["enrollmentPrerequisites"]
-// 			if prereqs != nil && strings.Contains(fmt.Sprint(prereqs), "Capstone Certificate") {
-// 				return false, nil
-// 			}
-// 			return true, nil
-// 		}
-//
-// }
-	return "yes"
+	// extract hits
+	hits := respStruct.Hits
+
+	// find course that matches the course we're looking for (should usually be first one)
+	var targetCourse CoursePackage
+	found := false
+
+	for _, course := range hits {
+
+		// set target course and stop early if found
+		if (course.Subject.ShortDesc + " " + course.CatalogNum) == courseName {
+			targetCourse = course
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		fmt.Printf("Target course %s not found\n", courseName)
+	}
+
+	return &targetCourse, nil
 }
 
-func newScrape(term string, courses []string) {
+// courseSubjectCodeScrape scrapes subject and course code for specified courses in the given term
+// returns a list of CoursePackages containing course/subject codes
+func courseSubjectCodeScrape(term string, courses []string) []*CoursePackage {
 	
-	for _, course := range courses {
-		found := checkClassStatus(term, course)
-		fmt.Println(found)
+	if len(courses) == 0 {
+		fmt.Println("No courses to search. Exiting.")
+		return nil
 	}
+
+	// retrieve course codes 
+	var coursePackages []*CoursePackage
+	for _, courseName := range courses {
+		currCourse, err := getCourseSubjectCode(term, courseName)
+		if err != nil {
+			fmt.Printf("Unable to get info for %s\n", courseName)
+		} else {
+			coursePackages = append(coursePackages, currCourse)
+		}
+	}
+
+	return coursePackages
 }
 

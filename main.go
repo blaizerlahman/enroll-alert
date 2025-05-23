@@ -1,21 +1,17 @@
 package main
 
-import (
-	"fmt"
-) 
-
 func main() {
 
 	connect()
 
-	newScrape("1262", []string{"COMP SCI 300", "MATH 221"})
+	coursePackages := courseSubjectCodeScrape("1262", []string{"COMP SCI 354", "MATH 240"})
 
-	courses := courseInfoScrape("1262", "266", []string{"024795"})
-	for _, course := range courses {
-		for _, enrollmentPackage := range course.EnrollmentPackages {
-			for _, lecture := range enrollmentPackage.Sections {
-				fmt.Println(lecture.Professor.Name.Last)
-			}
-		}
+	var subjectCodes []string
+	var courseCodes  []string
+	for _, coursePackage := range coursePackages {
+		subjectCodes = append(subjectCodes, coursePackage.Subject.SubjectCode)
+		courseCodes  = append(courseCodes, coursePackage.CourseCode)
 	}
+
+	courseInfoScrape("1262", subjectCodes, courseCodes)
 }

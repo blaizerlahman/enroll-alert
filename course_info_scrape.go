@@ -27,8 +27,7 @@ type Section struct {
 		OpenSeats             int    `json:"openSeats"`
 		WaitlistOpenSpots     int    `json:"openWaitlistSpots"`
 		WaitlistCapacity		  int    `json:"aggregateWaitlistCapacity`
-	} `json:"enrollmentStatus`
-	
+	} `json:"enrollmentStatus`	
 }
 
 // overall response structure
@@ -38,13 +37,13 @@ type EnrollmentPackage struct {
 
 // hold all enrollment packages (sections) for a particular course
 type Course struct {
-	EnrollmentPackages []EnrollmentPackage 
+	EnrollmentPackages []*EnrollmentPackage 
 }
 
 
 // getSectionInfo builds GET request and sends to and receives from API for specified course
 // returns list of sections each with its own section info
-func getSectionInfo(term string, subject string, courseCode string) []EnrollmentPackage {
+func getSectionInfo(term string, subject string, courseCode string) ([]*EnrollmentPackage, error) {
 
 	url := fmt.Sprintf("https://public.enroll.wisc.edu/api/search/v1/enrollmentPackages/%s/%s/%s", term, subject, courseCode)
 
@@ -52,7 +51,7 @@ func getSectionInfo(term string, subject string, courseCode string) []Enrollment
 	request, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		fmt.Printf("Error while creating GET request: %s\n", err)
-		return nil
+		return nil, err
 	}
 
 	// generate random user-agent 
@@ -72,7 +71,7 @@ func getSectionInfo(term string, subject string, courseCode string) []Enrollment
 	response, err := client.Do(request)
 	if err != nil {
 		fmt.Printf("Error sending request: %s\n", err)
-		return nil
+		return nil, err
 	}
 	defer response.Body.Close()
 
@@ -80,15 +79,14 @@ func getSectionInfo(term string, subject string, courseCode string) []Enrollment
 	body, err := ioutil.ReadAll(response.Body)
 	if err != nil {
 		fmt.Printf("Error parsing response: %s\n", err)
-		return nil
+		return nil, err
 	}
 
+	// parse and structure response as a list of EnrollmentPackages
 	var sections []EnrollmentPackage
-
-	// parse and structure response
 	if err := json.Unmarshal(body, &sections); err != nil {
 		fmt.Printf("Error with json unmarshal: %s\n", err)
-		return nil
+		return nil, err
 	}
 
 	if len(sections) == 0 {
@@ -108,19 +106,29 @@ func getSectionInfo(term string, subject string, courseCode string) []Enrollment
 		}
 	}
 	
-	return sections
+	// get pointers to each section
+	var sectionPtrs []*EnrollmentPackage
+	for i := range sections {
+		sectionPtrs = append(sectionPtrs, &sections[i])
+	}
+
+	return sectionPtrs, nil
 }
 
 // courseInfoScrape gather course infromation for given courses and return them
-func courseInfoScrape(term string, subject string, courseCodes []string) []Course {
+func courseInfoScrape(term string, subjects []string, courseCodes []string) []*Course {
 
-	var courses []Course
+	var courses []*Course
 
 	// get section info for each course from getSectionInfo
-	for _, courseCode := range courseCodes {
+	for i, courseCode := range courseCodes {
 		var course Course
-		course.EnrollmentPackages = getSectionInfo(term, subject, courseCode)
-		courses = append(courses, course)
+		var err error
+		course.EnrollmentPackages, err = getSectionInfo(term, subjects[i], courseCode)
+		if err != nil {
+			fmt.Printf("Error getting section info for %s: %v\n", courseCode, err)
+		}
+		courses = append(courses, &course)
 	}
 
 	return courses

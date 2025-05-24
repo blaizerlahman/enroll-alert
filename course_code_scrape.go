@@ -71,7 +71,7 @@ func getCourseSubjectCode(term string, courseName string) (*CoursePackage, error
 
 	url := "https://public.enroll.wisc.edu/api/search/v1"
 
-	// create GET request with course search URL
+	// create POST request with course search URL
 	request, err := http.NewRequest("POST", url, bytes.NewBuffer(reqBody))
 	if err != nil {
 		fmt.Printf("Error while creating POST request: %s\n", err)

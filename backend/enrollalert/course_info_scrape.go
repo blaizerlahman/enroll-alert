@@ -50,6 +50,7 @@ type EnrollmentPackage struct {
 // hold all enrollment packages (sections) for a particular course
 type Course struct {
 	EnrollmentPackages []*EnrollmentPackage 
+	CourseTitle        string
 }
 
 // getSectionInfo builds GET request and sends to and receives from API for specified course
@@ -127,30 +128,44 @@ func markHasSectionInSectionCache(pool *pgxpool.Pool, courseID string, hasSectio
 	return nil
 }
 
-// courseInfoScrape gather course infromation for given courses and return them
+// courseInfoScrape Scrape section informaiton from given courses from UW-Madison 
+// enrollment API using goroutines. 
+// Returns a list of pointers to Course objects containing section information for course
 func courseInfoScrape(pool *pgxpool.Pool, courseCodes []*CourseCodes) []*Course {
 
 	var waitGroup  sync.WaitGroup
 	var mutex      sync.Mutex
 	var courses    []*Course
-	var course     Course
 
+	// create job channel
 	jobs := make(chan *CourseCodes, len(courseCodes))
 
+	// create workers that will iterate through job channel and scrape section info from API
 	totalWorkers := 10
 	for currWorker := 0; currWorker < totalWorkers; currWorker++ {
+
 		waitGroup.Add(1)
+
+		// goroutine for workers to scrape section info, create new course from info and
+		// mark section status
 		go func() {
 			defer waitGroup.Done()
 			for courseCode := range jobs {
 
+				// scrape section info 
 				enrollmentPackages, err := getSectionInfo(courseCode)
 				if err != nil {
 					fmt.Printf("Error getting section info for %s: %v\n", courseCode.CourseID, err)
 					continue
 				}
-				course.EnrollmentPackages = enrollmentPackages
 
+				// create new course with retrieved section info and title
+				newCourse := &Course {
+					EnrollmentPackages: enrollmentPackages,
+					CourseTitle:        courseCode.CourseTitle,
+				}
+
+				// update section status for whether or not a course has sections
 				if len(enrollmentPackages) == 0 {
 					err = markHasSectionInSectionCache(pool, courseCode.CourseID, false)
 				} else {
@@ -162,12 +177,13 @@ func courseInfoScrape(pool *pgxpool.Pool, courseCodes []*CourseCodes) []*Course 
 				}
 
 				mutex.Lock()
-				courses = append(courses, &course)
+				courses = append(courses, newCourse)
 				mutex.Unlock()
 			}
 		}()
 	}
 
+	// add courseCodes to channel 
 	for _, courseCode := range courseCodes {
 		jobs <- courseCode
 	}

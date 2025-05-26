@@ -31,7 +31,10 @@ func main() {
 
 	//courseInfoScrape("1262", subjectCodes, courseCodes)
 
-	//enrollalert.InitialDriver(5666)
+	// err2 := enrollalert.InitialDriver(5666)
+	// if err2 != nil {
+	// 	fmt.Printf("Error during initial driver: %v", err2)
+	// }
 	
 	pool, err := pgxpool.New(context.Background(), os.Getenv("POSTGRES_URL"))
 	if err != nil {

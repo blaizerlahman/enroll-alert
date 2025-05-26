@@ -2,82 +2,114 @@
 
 import { useEffect, useState } from 'react'
 
-type Lecture = {
-  course_id:        string
-  course_name:      string
+type Course = {
+  course_id: string
+  course_name: string
+  subject_id: number
+  total_enrolled: number
+  total_capacity: number
   total_open_seats: number
-}
-
-type Subsection = {
-  section_num:  string
-  open_seats:   number
-  section_type: string
+  total_waitlist_capacity: number
+  total_waitlist_open: number
+  has_subsections: boolean
 }
 
 export default function CoursesPage() {
-  const [lectures, setLectures] = useState<Lecture[]>([])
+  const [courses, setCourses] = useState<Course[]>([])
+  const [search, setSearch] = useState('')
+  const [subjectFilter, setSubjectFilter] = useState<string | null>(null)
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
-  const [subsections, setSubsections] = useState<Record<string, Section[]>>({})
+  const [sections, setSections] = useState<Record<string, any[]>>({})
 
   useEffect(() => {
     fetch('/api/lectures')
       .then(res => res.json())
-      .then(setLectures)
+      .then(data => {
+        if (Array.isArray(data)) {
+          setCourses(data)
+        } else {
+          console.error('Lecture API error:', data)
+          setCourses([])
+        }
+      })
   }, [])
 
-  const toggleSubsections = async (courseId: string) => {
+  const filtered = courses.filter(course =>
+    course.course_name.toLowerCase().includes(search.toLowerCase()) &&
+    (!subjectFilter || String(course.subject_id) === subjectFilter)
+  )
+
+  const toggle = async (courseId: string) => {
     if (expanded[courseId]) {
       setExpanded(prev => ({ ...prev, [courseId]: false }))
     } else {
-      // only fetch if not already loaded
-      if (!subsections[courseId]) {
+      if (!sections[courseId]) {
         const res = await fetch(`/api/discussions/${courseId}`)
         const data = await res.json()
-        console.log('Fetched subsections:', data)
-        setSubsections(prev => ({ ...prev, [courseId]: data }))
+        setSections(prev => ({ ...prev, [courseId]: data }))
       }
       setExpanded(prev => ({ ...prev, [courseId]: true }))
     }
   }
 
+  const subjects = Array.from(new Set(courses.map(c => c.subject_id).filter(Boolean)))
+
   return (
-    <main className="p-6">
-      <h1 className="text-2xl font-bold mb-4">Courses</h1>
-      <ul>
-        {lectures.map(lec => (
-          <li key={lec.course_id} className="mb-4 border p-4 rounded">
-            <div className="flex justify-between items-center">
-              <span>
-                <strong>{lec.course_name}</strong> — Open Seats: {lec.total_open_seats}
-              </span>
+    <main className="p-6 space-y-4">
+      <div className="flex flex-wrap gap-4 items-center mb-6">
+        <input
+          type="text"
+          placeholder="Search by course name"
+          className="border p-2 rounded w-full sm:w-64"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+        <select
+          className="border p-2 rounded"
+          value={subjectFilter ?? ''}
+          onChange={(e) =>
+            setSubjectFilter(e.target.value || null)
+          }
+        >
+          <option value="">All Subjects</option>
+          {subjects.map(id => (
+            <option key={id} value={id}>{id}</option>
+          ))}
+        </select>
+      </div>
+
+      {filtered.map(course => (
+        <div key={course.course_id} className="border rounded-lg shadow p-4 space-y-2">
+          <div className="flex justify-between items-center">
+            <h2 className="text-lg font-semibold">{course.course_name}</h2>
+            {course.has_subsections &&  (
               <button
-                className="bg-blue-500 text-white px-3 py-1 rounded"
-                onClick={() => toggleSubsections(lec.course_id)}
+                onClick={() => toggle(course.course_id)}
+                className="text-sm bg-blue-500 text-white px-2 py-1 rounded"
               >
-                {expanded[lec.course_id] ? 'Hide Subsections' : 'Show Subsections'}
+                {expanded[course.course_id] ? 'Hide Sections' : 'Show Sections'}
               </button>
-            </div>
+            )}
+          </div>
+          <p>Enrolled: {course.total_enrolled} / {course.total_capacity}</p>
+          <p>Open Seats: {course.total_open_seats}</p>
+          <p>Waitlist: {course.total_waitlist_open} / {course.total_waitlist_capacity}</p>
 
-            {expanded[lec.course_id] && Array.isArray(subsections[lec.course_id]) && (
-              <ul className="mt-3 pl-4">
-                {subsections[lec.course_id].length === 0 ? (
-                  <li>No discussions or labs</li>
-                ) : (
-                  subsections[lec.course_id].map((sec, i) => (
-                    <li key={i}>
+          {expanded[course.course_id] && (
+            <ul className="ml-4 mt-2 list-disc">
+              {Array.isArray(sections[course.course_id]) && sections[course.course_id].length > 0 ? (
+                sections[course.course_id].map((sec, idx) => (
+                  <li key={idx}>
                     {sec.section_type} {sec.section_num} — Open Seats: {sec.open_seats}
-                    </li>
-                  ))
-                )}
-              </ul>
-            )}
-
-            {expanded[lec.course_id] && !Array.isArray(subsections[lec.course_id]) && (
-              <p className="text-red-500 mt-2">Error loading discussion data.</p>
-            )}
-          </li>
-        ))}
-      </ul>
+                  </li>
+                ))
+              ) : (
+                <li>No subsections available</li>
+              )}
+            </ul>
+          )}
+        </div>
+      ))}
     </main>
   )
 }

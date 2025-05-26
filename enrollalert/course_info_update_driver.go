@@ -3,7 +3,7 @@ package enrollalert
 import (
 	"context"
 	"fmt"
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type CourseCodes struct {
@@ -15,10 +15,10 @@ type CourseCodes struct {
 // getCourseCodesFromDB Queries course and subject codes using course name and creates a list of
 // CourseCodes containing subject/course ID's and course name
 // returns a list of pointers to CourseCodes containing course information
-func getCourseCodesFromDB(conn *pgx.Conn, courseIDs []string) ([]*CourseCodes, error) {
+func getCourseCodesFromDB(pool *pgxpool.Pool, courseIDs []string) ([]*CourseCodes, error) {
 
 	// perform query to retrieve course codes for specified courses and term
-	rows, err := conn.Query(context.Background(), `
+	rows, err := pool.Query(context.Background(), `
 		SELECT DISTINCT ON (course_id) course_id, subject_id, course_name
 		FROM public.courses
 		WHERE course_id = ANY($1)
@@ -47,7 +47,7 @@ func getCourseCodesFromDB(conn *pgx.Conn, courseIDs []string) ([]*CourseCodes, e
 	return queryResults, nil
 }
 
-func updateSeatInfoDB(conn *pgx.Conn, coursesSeatInfo []*Course) error {
+func updateSeatInfoDB(pool *pgxpool.Pool, coursesSeatInfo []*Course) error {
 
 	query := `
 		INSERT INTO course_sections (
@@ -72,7 +72,7 @@ func updateSeatInfoDB(conn *pgx.Conn, coursesSeatInfo []*Course) error {
 		for _, enrollmentPackage := range course.EnrollmentPackages {
 			for _, section := range enrollmentPackage.Sections {	
 				
-				_, err := conn.Exec(context.Background(), query,
+				_, err := pool.Exec(context.Background(), query,
 
 					TermNum, section.CourseID, section.SectionNumber, section.ClassType, section.Subject.SubjectID,
 				  fmt.Sprintf("%s %s", section.Subject.ShortDesc, section.CatalogNumber), 
@@ -96,17 +96,17 @@ func updateSeatInfoDB(conn *pgx.Conn, coursesSeatInfo []*Course) error {
 // course seat info from UW Madison enrollment API. Uses scraped data to update Postgres database for
 // specified courses
 // Returns error on failure
-func CourseInfoUpdateDriver(conn *pgx.Conn, courseNames []string) error {
+func CourseInfoUpdateDriver(pool *pgxpool.Pool, courseNames []string) error {
 
 	// get course codes from database for specified courses
-	courseCodes, err := getCourseCodesFromDB(conn, courseNames)
+	courseCodes, err := getCourseCodesFromDB(pool, courseNames)
 	if err != nil {
 		return fmt.Errorf("Error with retrieving course info from database: %w", err)
 	}
 
 	fmt.Println(len(courseNames))
 	fmt.Println(len(courseCodes))
-	coursesSeatInfo := courseInfoScrape(conn, courseCodes)
+	coursesSeatInfo := courseInfoScrape(pool, courseCodes)
 
 	// for _, c := range coursesSeatInfo {
 	// 	for _, d := range c.EnrollmentPackages {
@@ -117,7 +117,7 @@ func CourseInfoUpdateDriver(conn *pgx.Conn, courseNames []string) error {
 	// 	}
 	//}
 
-	err = updateSeatInfoDB(conn, coursesSeatInfo)
+	err = updateSeatInfoDB(pool, coursesSeatInfo)
 	if err != nil {
 		return fmt.Errorf ("Failed to update DB with course info: %w", err)
 	}

@@ -6,8 +6,9 @@ import (
 	"io/ioutil"
 	"context"
 	"net/http"
+	"sync"
 	"github.com/corpix/uarand"
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // structure of each section returned by API
@@ -109,10 +110,10 @@ func getSectionInfo(courseCodes *CourseCodes) ([]*EnrollmentPackage, error) {
 // markHasSectionInSectionCache Updates course cache table with if given course has a section
 // or not so redundant scraping can be avoided
 // Returns error if failure in updating table
-func markHasSectionInSectionCache(conn *pgx.Conn, courseID string, hasSection bool) error {
+func markHasSectionInSectionCache(pool *pgxpool.Pool, courseID string, hasSection bool) error {
 
 	// update section cache table with if course has a section
-	_, err := conn.Exec(context.Background(), `
+	_, err := pool.Exec(context.Background(), `
 		INSERT INTO course_section_cache (course_id, term, last_seen, has_section)
 		VALUES ($1, $2, CURRENT_TIMESTAMP, $3)
 		ON CONFLICT (course_id)
@@ -127,31 +128,53 @@ func markHasSectionInSectionCache(conn *pgx.Conn, courseID string, hasSection bo
 }
 
 // courseInfoScrape gather course infromation for given courses and return them
-func courseInfoScrape(conn *pgx.Conn, courseCodes []*CourseCodes) []*Course {
+func courseInfoScrape(pool *pgxpool.Pool, courseCodes []*CourseCodes) []*Course {
 
-	var courses []*Course
-	var course Course
-	var err error
-	
-	// get section info for each course from getSectionInfo
-	for _, currCourseCodes := range courseCodes {
+	var waitGroup  sync.WaitGroup
+	var mutex      sync.Mutex
+	var courses    []*Course
+	var course     Course
 
-		course.EnrollmentPackages, err = getSectionInfo(currCourseCodes)
-		if err != nil {
-			fmt.Printf("Error getting section info for %s: %v\n", currCourseCodes.CourseName, err)
-		}
+	jobs := make(chan *CourseCodes, len(courseCodes))
 
-		// mark if a course has sections in section cache table so we know to skip over
-		// it or not when scraping
-		if len(course.EnrollmentPackages) == 0 {
-			markHasSectionInSectionCache(conn, currCourseCodes.CourseID, false)
-		} else {
-			markHasSectionInSectionCache(conn, currCourseCodes.CourseID, true)
-		}
+	totalWorkers := 10
+	for currWorker := 0; currWorker < totalWorkers; currWorker++ {
+		waitGroup.Add(1)
+		go func() {
+			defer waitGroup.Done()
+			for courseCode := range jobs {
 
-		courses = append(courses, &course)
+				enrollmentPackages, err := getSectionInfo(courseCode)
+				if err != nil {
+					fmt.Printf("Error getting section info for %s: %v\n", courseCode.CourseID, err)
+					continue
+				}
+				course.EnrollmentPackages = enrollmentPackages
+
+				if len(enrollmentPackages) == 0 {
+					err = markHasSectionInSectionCache(pool, courseCode.CourseID, false)
+				} else {
+					err = markHasSectionInSectionCache(pool, courseCode.CourseID, true)
+				}
+
+				if err != nil {
+					fmt.Printf("Error updating cache for %s: %v\n", courseCode.CourseID, err)
+				}
+
+				mutex.Lock()
+				courses = append(courses, &course)
+				mutex.Unlock()
+			}
+		}()
 	}
+
+	for _, courseCode := range courseCodes {
+		jobs <- courseCode
+	}
+	close(jobs)
+
+	waitGroup.Wait()
 
 	return courses
 }
-
+	

@@ -10,7 +10,7 @@ import (
 	"encoding/json"
   "io/ioutil"
 	"net/http"
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/corpix/uarand"
 )
 
@@ -103,16 +103,16 @@ func initialCourseLoad(courses []*CoursePackage) error {
 
 	// opening connection
 	connStr := os.Getenv("POSTGRES_URL")
-	conn, err := pgx.Connect(context.Background(), connStr);
+	pool, err := pgxpool.New(context.Background(), connStr);
 
 	if err != nil {
 		return fmt.Errorf("Unable to connect: %w", err)
 	}
 
-	defer conn.Close(context.Background())
+	defer pool.Close()
 
 	// set public search path to find courses table
-	_, err = conn.Exec(context.Background(), "SET search_path TO public")
+	_, err = pool.Exec(context.Background(), "SET search_path TO public")
 	if err != nil {
 		return fmt.Errorf("Unable to set search_path: %w", err)
 	}
@@ -138,7 +138,7 @@ func initialCourseLoad(courses []*CoursePackage) error {
 		}
 
 		// insert course/subject code and course name into database 
-		_, err := conn.Exec(context.Background(), `
+		_, err := pool.Exec(context.Background(), `
 			INSERT INTO public.courses (course_id, subject_id, course_name, term)
 			VALUES ($1, $2, $3, $4)
 			ON CONFLICT (course_id, subject_id, term)

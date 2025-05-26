@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"context"
 	"os"
-	"github.com/jackc/pgx/v5"
 	"enroll-alert/enrollalert"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func main() {
@@ -33,20 +33,20 @@ func main() {
 
 	//enrollalert.InitialDriver(5666)
 	
-	conn, err := pgx.Connect(context.Background(), os.Getenv("POSTGRES_URL"))
+	pool, err := pgxpool.New(context.Background(), os.Getenv("POSTGRES_URL"))
 	if err != nil {
 		fmt.Printf("Failed to connect to DB: %v\n", err)
 		return
 	}
-	defer conn.Close(context.Background())
+	defer pool.Close()
 
 	fmt.Println("Connected from main")
 
-	courseIDs, err := enrollalert.GetAllCourseIDs(conn)
+	courseIDs, err := enrollalert.GetAllCourseIDs(pool)
 	
 	start := time.Now()
 
-	err = enrollalert.CourseInfoUpdateDriver(conn, courseIDs)
+	err = enrollalert.CourseInfoUpdateDriver(pool, courseIDs)
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 	}

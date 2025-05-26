@@ -15,6 +15,7 @@ import (
 )
 
 var Term string
+var TermNum int
 
 // initialCourseScrape creates and sends a POST request to UW Madison course
 // search API and retrieves course/subject codes for given amount of courses

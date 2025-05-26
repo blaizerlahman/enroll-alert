@@ -3,7 +3,6 @@ package enrollalert
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -16,27 +15,25 @@ type CourseCodes struct {
 // getCourseCodesFromDB Queries course and subject codes using course name and creates a list of
 // CourseCodes containing subject/course ID's and course name
 // returns a list of pointers to CourseCodes containing course information
-func getCourseCodesFromDB(conn *pgx.Conn, courseNames []string) ([]*CourseCodes, error) {
+func getCourseCodesFromDB(conn *pgx.Conn, courseIDs []string) ([]*CourseCodes, error) {
 
-	// SQL query for course/subject id and name
-	query := `
-		SELECT course_id, subject_id, course_name
+	// perform query to retrieve course codes for specified courses and term
+	rows, err := conn.Query(context.Background(), `
+		SELECT DISTINCT ON (course_id) course_id, subject_id, course_name
 		FROM public.courses
-		WHERE course_name = ANY($1);
-	`
-
-	// perform query
-	rows, err := conn.Query(context.Background(), query, courseNames)
+		WHERE course_id = ANY($1)
+		  AND term = $2;
+	`, courseIDs, TermNum)
 	if err != nil {
-		return nil, fmt.Errorf("Error with query %s: %w", query, err)
+		return nil, fmt.Errorf("Error with course codes query: %w", err)
 	}
 	defer rows.Close()
 
 	var queryResults []*CourseCodes
+	var currCourse CourseCodes
 
 	// iterate through rows and create CourseCodes objects from data in rows
 	for rows.Next() {
-		var currCourse CourseCodes
 		if err := rows.Scan(&currCourse.CourseID, &currCourse.SubjectID, &currCourse.CourseName); err != nil {
 			return nil, fmt.Errorf("Error with row scan: %w", err)
 		}
@@ -71,18 +68,13 @@ func updateSeatInfoDB(conn *pgx.Conn, coursesSeatInfo []*Course) error {
 			last_updated = CURRENT_TIMESTAMP;
 	`
 
-	termNum, err := strconv.Atoi(Term)
-	if err != nil {
-		return fmt.Errorf("Error with converting term to int: %w", err)
-	}
-
 	for _, course := range coursesSeatInfo {
 		for _, enrollmentPackage := range course.EnrollmentPackages {
 			for _, section := range enrollmentPackage.Sections {	
 				
 				_, err := conn.Exec(context.Background(), query,
 
-					termNum, section.CourseID, section.SectionNumber, section.ClassType, section.Subject.SubjectID,
+					TermNum, section.CourseID, section.SectionNumber, section.ClassType, section.Subject.SubjectID,
 				  fmt.Sprintf("%s %s", section.Subject.ShortDesc, section.CatalogNumber), 
 				  section.EnrollmentStatus.Capacity, section.EnrollmentStatus.CurrentlyEnrolled,
 					section.EnrollmentStatus.OpenSeats, section.EnrollmentStatus.WaitlistCapacity,
@@ -112,7 +104,9 @@ func CourseInfoUpdateDriver(conn *pgx.Conn, courseNames []string) error {
 		return fmt.Errorf("Error with retrieving course info from database: %w", err)
 	}
 
-	coursesSeatInfo := courseInfoScrape(courseCodes)
+	fmt.Println(len(courseNames))
+	fmt.Println(len(courseCodes))
+	coursesSeatInfo := courseInfoScrape(conn, courseCodes)
 
 	// for _, c := range coursesSeatInfo {
 	// 	for _, d := range c.EnrollmentPackages {

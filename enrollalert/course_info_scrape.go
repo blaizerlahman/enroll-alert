@@ -4,8 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"context"
 	"net/http"
 	"github.com/corpix/uarand"
+	"github.com/jackc/pgx/v5"
 )
 
 // structure of each section returned by API
@@ -102,21 +104,51 @@ func getSectionInfo(courseCodes *CourseCodes) ([]*EnrollmentPackage, error) {
 	}
 
 	return sectionPtrs, nil
+} 
+
+// markHasSectionInSectionCache Updates course cache table with if given course has a section
+// or not so redundant scraping can be avoided
+// Returns error if failure in updating table
+func markHasSectionInSectionCache(conn *pgx.Conn, courseID string, hasSection bool) error {
+
+	// update section cache table with if course has a section
+	_, err := conn.Exec(context.Background(), `
+		INSERT INTO course_section_cache (course_id, term, last_seen, has_section)
+		VALUES ($1, $2, CURRENT_TIMESTAMP, $3)
+		ON CONFLICT (course_id)
+		DO UPDATE SET last_seen = CURRENT_TIMESTAMP, has_section = $3;
+	`, courseID, TermNum, hasSection)
+
+	if err != nil {
+		return fmt.Errorf("Error with updating section cache for %s: %w", courseID, err)
+	}
+
+	return nil
 }
 
 // courseInfoScrape gather course infromation for given courses and return them
-func courseInfoScrape(courseCodes []*CourseCodes) []*Course {
+func courseInfoScrape(conn *pgx.Conn, courseCodes []*CourseCodes) []*Course {
 
 	var courses []*Course
-
+	var course Course
+	var err error
+	
 	// get section info for each course from getSectionInfo
 	for _, currCourseCodes := range courseCodes {
-		var course Course
-		var err error
+
 		course.EnrollmentPackages, err = getSectionInfo(currCourseCodes)
 		if err != nil {
 			fmt.Printf("Error getting section info for %s: %v\n", currCourseCodes.CourseName, err)
 		}
+
+		// mark if a course has sections in section cache table so we know to skip over
+		// it or not when scraping
+		if len(course.EnrollmentPackages) == 0 {
+			markHasSectionInSectionCache(conn, currCourseCodes.CourseID, false)
+		} else {
+			markHasSectionInSectionCache(conn, currCourseCodes.CourseID, true)
+		}
+
 		courses = append(courses, &course)
 	}
 

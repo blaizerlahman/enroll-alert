@@ -1,27 +1,28 @@
-// components/Navbar.tsx
-"use client"
-
 import { useEffect, useState } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import Image from "next/image"
 
 export default function Navbar({
   search,
   setSearch,
-  isSignedIn = false,
+  isSignedIn,
+  setShowAuth,
 }: {
   search: string
   setSearch: (val: string) => void
   isSignedIn?: boolean
 }) {
-
   return (
-
     <header className="fixed top-0 w-full px-6 py-4 flex items-center justify-between bg-white border-b shadow-md z-50">
-
       <div className="flex items-center space-x-4">
-        <div className="w-10 h-10 bg-gray-300 rounded-full" />
+        <Image
+          src="/enrollalert_logo.png"
+          alt="EnrollAlert logo"
+          width={60}
+          height={60}
+        />
         <span className="text-xl font-semibold">EnrollAlert</span>
       </div>
 
@@ -36,9 +37,15 @@ export default function Navbar({
 
       <div className="ml-4">
         {isSignedIn ? (
-          <div className="w-10 h-10 bg-gray-300 rounded-full" /> // profile pic placeholder
+          <Image
+            src="/default_profile.png"
+            alt="Profile Picture"
+            width={40}
+            height={40}
+            className ="rounded-full"
+          />
         ) : (
-          <Button variant="outline">Sign In</Button>
+          <Button variant="outline" onClick={() => setShowAuth(true)}>Sign In</Button>
         )}
       </div>
     </header>

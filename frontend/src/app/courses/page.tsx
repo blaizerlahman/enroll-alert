@@ -2,6 +2,10 @@
 
 import { useEffect, useState } from "react"
 
+import { onAuthStateChanged, User } from "firebase/auth"
+import { auth } from "@/lib/firebase"
+import AuthModal from "@/components/AuthModal"
+
 import { Input } from "@/components/ui/input"
 
 import { Checkbox } from "@/components/ui/checkbox"
@@ -50,6 +54,8 @@ type Course = {
 }
 
 export default function CoursesPage() {
+  const [user, setUser] = useState<User | null>(null)
+  const [showAuth, setShowAuth] = useState(false)
   const [courses, setCourses] = useState<Course[]>([])
   const [search, setSearch] = useState('')
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
@@ -66,6 +72,14 @@ export default function CoursesPage() {
   const [open, setOpen] = useState(false)
   const [page, setPage] = useState(1)
   const perPage = 20
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setUser(user)
+    })
+
+    return () => unsubscribe()
+  }, [])
 
   useEffect(() => {
     const filtersChanged =
@@ -104,7 +118,6 @@ export default function CoursesPage() {
       .then(res => res.json())
       .then(data => {
         if (Array.isArray(data)) { 
-          console.log("Loaded breadths:", data)
           setBreadths(data)
         }
         else console.error('Breadths API error:', data)
@@ -152,7 +165,8 @@ export default function CoursesPage() {
   return (
 
     <div>
-      <Navbar search={search} setSearch={setSearch} isSignedIn={false /* or true if authenticated */} />
+      <Navbar search={search} setSearch={setSearch} isSignedIn={!!user} setShowAuth={setShowAuth} />
+      {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
 
       <main className="pt-24 px-6 space-y-4">
         

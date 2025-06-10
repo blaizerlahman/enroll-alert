@@ -12,7 +12,7 @@ export async function getCourseSubsections(courseId: string) {
         section_num::int AS lecture_num_int,
         section_num      AS lecture_num,
         course_id,
-        COALESCE(prof_name, 'Unknown') AS professor
+        COALESCE(prof_name, 'Unknown') AS professor,
         capacity, enrolled, open_seats,
         waitlist_capacity, waitlist_open_spots
       FROM course_sections

@@ -54,9 +54,10 @@ func updateSeatInfoDB(pool *pgxpool.Pool, coursesSeatInfo []*Course) error {
 	query := `
 		INSERT INTO course_sections (
 			term, course_id, section_num, section_type, subject_id, course_name, course_title,
-			capacity, enrolled, open_seats, waitlist_capacity, waitlist_open_spots, last_updated
+			capacity, enrolled, open_seats, waitlist_capacity, waitlist_open_spots, 
+			prof_name, last_updated
 		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, CURRENT_TIMESTAMP)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, CURRENT_TIMESTAMP)
 		ON CONFLICT (course_id, section_num)
 		DO UPDATE SET
 			section_type        = EXCLUDED.section_type,
@@ -68,6 +69,7 @@ func updateSeatInfoDB(pool *pgxpool.Pool, coursesSeatInfo []*Course) error {
 			open_seats          = EXCLUDED.open_seats,
 			waitlist_capacity   = EXCLUDED.waitlist_capacity,
 			waitlist_open_spots = EXCLUDED.waitlist_open_spots,
+			prof_name           = EXCLUDED.prof_name,
 			last_updated        = CURRENT_TIMESTAMP;
 	`
 
@@ -94,6 +96,7 @@ func updateSeatInfoDB(pool *pgxpool.Pool, coursesSeatInfo []*Course) error {
 				  course.CourseTitle, section.EnrollmentStatus.Capacity, 
 					section.EnrollmentStatus.CurrentlyEnrolled, section.EnrollmentStatus.OpenSeats, 
 					section.EnrollmentStatus.WaitlistCapacity, section.EnrollmentStatus.WaitlistOpenSpots,
+					fmt.Sprintf("%s %s", section.Professor.Name.First, section.Professor.Name.Last),
 				)
 
 				if err != nil {

@@ -5,6 +5,48 @@ const pool = new Pool({
   connectionString: process.env.POSTGRES_URL,
 })
 
+export async function getCourseSubsections(courseId: string) {
+  const sql = `
+    WITH lec AS (
+      SELECT
+        section_num::int AS lecture_num_int,
+        section_num      AS lecture_num,
+        course_id,
+        COALESCE(prof_name, 'Unknown') AS professor
+        capacity, enrolled, open_seats,
+        waitlist_capacity, waitlist_open_spots
+      FROM course_sections
+      WHERE course_id = $1 AND section_type = 'LEC'
+    ),
+    dis AS (
+      SELECT
+        section_num::int AS dis_num_int,
+        section_num, section_type,
+        capacity, enrolled, open_seats,
+        waitlist_capacity, waitlist_open_spots,
+        course_id
+      FROM course_sections
+      WHERE course_id = $1 AND section_type IN ('DIS','LAB','SEM')
+    )
+    SELECT
+      l.*,                                  
+      d.section_num   AS dis_section_num,    
+      d.section_type  AS dis_section_type,
+      d.capacity      AS dis_capacity,
+      d.enrolled      AS dis_enrolled,
+      d.open_seats    AS dis_open_seats,
+      d.waitlist_capacity     AS dis_waitlist_capacity,
+      d.waitlist_open_spots   AS dis_waitlist_open_spots
+    FROM lec l
+    LEFT JOIN dis d
+      ON d.dis_num_int BETWEEN 300 + (l.lecture_num_int - 1) * 20 + 1
+                        AND     300 +  l.lecture_num_int       * 20
+    ORDER BY l.lecture_num, d.section_num;
+  `
+  const { rows } = await pool.query(sql, [courseId])
+  return rows
+}
+
 export async function getFilteredCourses({
   search = '',
   breadths = [],
@@ -87,7 +129,7 @@ export async function getFilteredCourses({
     WHERE ${whereClauses.join(' AND ')}
     GROUP BY course_id, course_name, subject_id, course_title
     ${breadthFilter}
-    ${orderByClause || 'ORDER BY course_name'} -- default if no search
+    ${orderByClause || 'ORDER BY course_name'}
   `
 
 

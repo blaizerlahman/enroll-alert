@@ -1,44 +1,27 @@
 'use client'
 
-import { useEffect, useState } from "react"
+import { useEffect, useState } from 'react'
+import { onAuthStateChanged, User } from 'firebase/auth'
+import { auth } from '@/lib/firebase'
+import AuthModal from '@/components/AuthModal'
 
-import { onAuthStateChanged, User } from "firebase/auth"
-import { auth } from "@/lib/firebase"
-import AuthModal from "@/components/AuthModal"
-
-import { Input } from "@/components/ui/input"
-
-import { Checkbox } from "@/components/ui/checkbox"
-import { Label } from "@/components/ui/label"
-
+import { Input } from '@/components/ui/input'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Label } from '@/components/ui/label'
 import {
-  Command,
-  CommandInput,
-  CommandItem,
-  CommandEmpty,
-  CommandGroup,
-  CommandList
-} from "@/components/ui/command"
-
+  Command, CommandInput, CommandItem, CommandEmpty,
+  CommandGroup, CommandList
+} from '@/components/ui/command'
 import {
-  Popover,
-  PopoverTrigger,
-  PopoverContent
-} from "@/components/ui/popover"
-
-import { Button } from "@/components/ui/button"
-
+  Popover, PopoverTrigger, PopoverContent
+} from '@/components/ui/popover'
 import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select"
-
-import Navbar from "@/components/Navbar"
-
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+  Select, SelectTrigger, SelectValue,
+  SelectContent, SelectItem
+} from '@/components/ui/select'
+import { Button } from '@/components/ui/button'
+import Navbar from '@/components/Navbar'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 type Course = {
   course_id: string
@@ -53,32 +36,52 @@ type Course = {
   has_subsections: boolean
 }
 
+type Discussion = {
+  section_num: string
+  section_type: 'DIS' | 'LAB' | 'SEM'
+  capacity: number
+  enrolled: number
+  open_seats: number
+  waitlist_capacity: number
+  waitlist_open_spots: number
+}
+
+type Lecture = {
+  lecture_num: string
+  professor: string
+  capacity: number
+  enrolled: number
+  open_seats: number
+  waitlist_capacity: number
+  waitlist_open_spots: number
+  discussions: Discussion[]
+}
+
 export default function CoursesPage() {
   const [user, setUser] = useState<User | null>(null)
   const [showAuth, setShowAuth] = useState(false)
+
   const [courses, setCourses] = useState<Course[]>([])
-  const [search, setSearch] = useState('')
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({})
-  const [sections, setSections] = useState<Record<string, any[]>>({})
-  const [breadths, setBreadths] = useState<string[]>([])
+  const [sections, setSections] = useState<Record<string, Lecture[]>>({})
+  const [expanded, setExpanded]   = useState<Record<string, boolean>>({})
+
+  const [search, setSearch]                     = useState('')
+  const [breadths, setBreadths]                 = useState<string[]>([])
   const [selectedBreadths, setSelectedBreadths] = useState<string[]>([])
-  const [subjects, setSubjects] = useState<string[]>([])
-  const [subjectFilter, setSubjectFilter] = useState<string | null>(null)
+  const [subjects, setSubjects]                 = useState<string[]>([])
+  const [subjectFilter, setSubjectFilter]       = useState<string | null>(null)
+
   const [prevFilters, setPrevFilters] = useState({
-    search: '',
-    subjectFilter: null as string | null,
-    selectedBreadths: [] as string[],
+    search: '', subjectFilter: null as string | null, selectedBreadths: [] as string[]
   })
+
   const [open, setOpen] = useState(false)
   const [page, setPage] = useState(1)
   const perPage = 20
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user)
-    })
-
-    return () => unsubscribe()
+    const unsub = onAuthStateChanged(auth, (u) => setUser(u))
+    return () => unsub()
   }, [])
 
   useEffect(() => {
@@ -88,22 +91,17 @@ export default function CoursesPage() {
       selectedBreadths.join(',') !== prevFilters.selectedBreadths.join(',')
 
     const params = new URLSearchParams()
-    if (search) params.set('search', search)
-    if (subjectFilter) params.set('subject', subjectFilter)
-    if (selectedBreadths.length > 0) params.set('breadths', selectedBreadths.join(','))
+    if (search)          params.set('search', search)
+    if (subjectFilter)   params.set('subject', subjectFilter)
+    if (selectedBreadths.length) params.set('breadths', selectedBreadths.join(','))
     params.set('page', page.toString())
     params.set('perPage', perPage.toString())
 
     fetch(`/api/courses?${params.toString()}`)
-      .then(res => res.json())
+      .then(r => r.json())
       .then(data => {
         if (Array.isArray(data)) {
-          if (filtersChanged || page === 1) {
-            setCourses(data)
-          } else {
-            setCourses(prev => [...prev, ...data])
-          }
-
+          setCourses(filtersChanged || page === 1 ? data : prev => [...prev, ...data])
           setPrevFilters({ search, subjectFilter, selectedBreadths })
         } else {
           console.error('Course fetch error:', data)
@@ -112,95 +110,68 @@ export default function CoursesPage() {
       })
   }, [search, subjectFilter, selectedBreadths, page])
 
+  useEffect(() => { fetch('/api/breadths').then(r => r.json()).then(setBreadths) }, [])
+  useEffect(() => { fetch('/api/subjects').then(r => r.json()).then(setSubjects) }, [])
 
-  useEffect(() => {
-    fetch('/api/breadths')
-      .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data)) { 
-          setBreadths(data)
-        }
-        else console.error('Breadths API error:', data)
-      })
-  }, [])
+  useEffect(() => { setPage(1) }, [search, subjectFilter, selectedBreadths])
 
-  useEffect(() => {
-    fetch('/api/subjects')
-      .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data)) setSubjects(data)
-        else console.error('Subjects API error:', data)
-      })
-  }, [])
-
-
-  // reset page when filters change
-  useEffect(() => {
-    setPage(1)
-  }, [search, subjectFilter, selectedBreadths])
-
-
-  function toggleBreadth(breadth: string) {
-  setSelectedBreadths(prev =>
-    prev.includes(breadth)
-      ? prev.filter(b => b !== breadth)
-      : [...prev, breadth]
-    )
+  function toggleBreadth(b: string) {
+    setSelectedBreadths(prev =>
+      prev.includes(b) ? prev.filter(x => x !== b) : [...prev, b])
   }
 
-  const toggle = async (courseId: string) => {
+  async function toggle(courseId: string) {
     if (expanded[courseId]) {
       setExpanded(prev => ({ ...prev, [courseId]: false }))
-    } else {
-      if (!sections[courseId]) {
-        const res = await fetch(`/api/discussions/${courseId}`)
-        const data = await res.json()
-        setSections(prev => ({ ...prev, [courseId]: data }))
-      }
-      setExpanded(prev => ({ ...prev, [courseId]: true }))
+      return
     }
+
+    if (!sections[courseId]) {
+      const res  = await fetch(`/api/sections/${courseId}`)
+      const data = await res.json() as Lecture[]
+      setSections(prev => ({ ...prev, [courseId]: data }))
+    }
+    setExpanded(prev => ({ ...prev, [courseId]: true }))
   }
 
-
   return (
-
     <div>
-      <Navbar search={search} setSearch={setSearch} isSignedIn={!!user} setShowAuth={setShowAuth} />
+      <Navbar
+        search={search}
+        setSearch={setSearch}
+        isSignedIn={!!user}
+        setShowAuth={setShowAuth}
+      />
       {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
 
       <main className="pt-24 px-6 space-y-4">
-        
+
         <Popover open={open} onOpenChange={setOpen}>
           <PopoverTrigger asChild>
             <Button variant="outline" className="w-[200px] justify-start">
-              {subjectFilter ?? "Select Subject"}
+              {subjectFilter ?? 'Select Subject'}
             </Button>
           </PopoverTrigger>
+
           <PopoverContent className="w-[200px] p-0">
             <Command>
-              <CommandInput placeholder="Search subject..." />
+              <CommandInput placeholder="Search subject…" />
               <CommandEmpty>No subjects found.</CommandEmpty>
               <CommandList>
                 <CommandGroup>
                   <CommandItem
                     value="all"
-                    onSelect={() => {
-                      setSubjectFilter(null)
-                      setOpen(false)
-                    }}
+                    onSelect={() => { setSubjectFilter(null); setOpen(false) }}
                   >
                     All Subjects
                   </CommandItem>
-                  {subjects.map((subject) => (
+                  {subjects.map((s) => (
                     <CommandItem
-                      key={subject}
-                      value={subject}
-                      onSelect={(currentValue) => {
-                        setSubjectFilter(currentValue)
-                        setOpen(false)
-                      }}
+                      key={s}
+                      value={s}
+                      onSelect={() => { setSubjectFilter(s); setOpen(false) }}
                     >
-                      {subject}
+                      {s}
                     </CommandItem>
                   ))}
                 </CommandGroup>
@@ -208,7 +179,6 @@ export default function CoursesPage() {
             </Command>
           </PopoverContent>
         </Popover>
-
 
         <div className="flex flex-wrap gap-4">
           {breadths.map(b => (
@@ -223,40 +193,70 @@ export default function CoursesPage() {
           ))}
         </div>
 
-
         {courses.length === 0 ? (
           <p className="text-muted-foreground text-center italic mt-8">
             No courses found matching your search.
           </p>
         ) : (
-          courses.map((course, index) => (
-            <Card key={`${course.course_id}-${index}`}>
-              <CardHeader className="flex flex-row justify-between items-center">
+          courses.map((course, idx) => (
+            <Card key={`${course.course_id}-${idx}`}>
+              <CardHeader className="flex justify-between items-center">
                 <CardTitle className="text-lg">
-                  {course.course_name} – <span className="font-normal text-muted-foreground">{course.course_title}</span>
+                  {course.course_name}&nbsp;–&nbsp;
+                  <span className="font-normal text-muted-foreground">
+                    {course.course_title}
+                  </span>
                 </CardTitle>
+
                 {course.has_subsections && (
-                  <Button variant="outline" size="sm" onClick={() => toggle(course.course_id)}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => toggle(course.course_id)}
+                  >
                     {expanded[course.course_id] ? 'Hide Sections' : 'Show Sections'}
                   </Button>
                 )}
               </CardHeader>
+
               <CardContent className="space-y-1">
                 <p>Enrolled: {course.total_enrolled} / {course.total_capacity}</p>
                 <p>Open Seats: {course.total_open_seats}</p>
                 <p>Waitlist: {course.total_waitlist_open} / {course.total_waitlist_capacity}</p>
-                {expanded[course.course_id] && (
-                  <ul className="ml-4 mt-2 list-disc">
-                    {Array.isArray(sections[course.course_id]) && sections[course.course_id].length > 0 ? (
-                      sections[course.course_id].map((sec, idx) => (
-                        <li key={idx}>
-                          {sec.section_type} {sec.section_num} — Open Seats: {sec.open_seats}
-                        </li>
-                      ))
-                    ) : (
-                      <li>No subsections available</li>
-                    )}
-                  </ul>
+
+                {expanded[course.course_id] && sections[course.course_id] && (
+                  <div className="space-y-3 mt-3">
+                    {sections[course.course_id].map(lec => (
+                      <div key={lec.lecture_num}>
+                        {/* Lecture header ------------------------- */}
+                        <div className="font-semibold">
+                          LEC&nbsp;{lec.lecture_num}
+                          {lec.professor && ` — ${lec.professor}`}
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          Enrolled {lec.enrolled}/{lec.capacity}&nbsp;·&nbsp;
+                          Open {lec.open_seats}&nbsp;·&nbsp;
+                          Waitlist {lec.waitlist_open_spots}/{lec.waitlist_capacity}
+                        </p>
+
+                        {/* Discussions --------------------------- */}
+                        {lec.discussions.length > 0 ? (
+                          <ul className="ml-4 list-disc">
+                            {lec.discussions.map(d => (
+                              <li key={d.section_num}>
+                                {d.section_type}&nbsp;{d.section_num}&nbsp;—&nbsp;
+                                open&nbsp;{d.open_seats}/{d.capacity}
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="ml-4 italic text-sm text-muted-foreground">
+                            No discussion / lab / seminar sections
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 )}
               </CardContent>
             </Card>
@@ -264,9 +264,7 @@ export default function CoursesPage() {
         )}
 
         {courses.length === page * perPage && (
-          <Button onClick={() => setPage(p => p + 1)}>
-            Load More
-          </Button>
+          <Button onClick={() => setPage(p => p + 1)}>Load More</Button>
         )}
       </main>
     </div>

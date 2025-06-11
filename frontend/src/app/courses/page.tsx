@@ -251,24 +251,41 @@ export default function CoursesPage() {
                 </CardHeader>
 
                 <CardContent className="space-y-1">
-                  <p>
-                    Enrolled: {course.total_enrolled} / {course.total_capacity}
-                  </p>
-                  <p>Open Seats: {course.total_open_seats}</p>
-                  <p>
-                    Waitlist: {course.total_waitlist_open} /{' '}
-                    {course.total_waitlist_capacity}
-                  </p>
+                  <div className="flex flex-wrap gap-x-4 gap-y-3">
+                    <span className="inline-flex items-center rounded-full border-2 px-3 py-1 text-base font-medium">
+                      Currently Enrolled:&nbsp;{course.total_enrolled}/{course.total_capacity}
+                    </span>
+                    <span className="inline-flex items-center rounded-full border-2 px-3 py-1 text-base font-medium">
+                      Open Seats:&nbsp;{course.total_open_seats}
+                    </span>
+                    <span className="inline-flex items-center rounded-full border-2 px-3 py-1 text-base font-medium">
+                      Waitlist:&nbsp;{course.total_waitlist_open}/{course.total_waitlist_capacity}
+                    </span>
+                  </div>  
 
                   {expanded[course.course_id] &&
                     sections[course.course_id] && (
                       <div className="space-y-3 mt-3">
                         {sections[course.course_id].map((lec) => (
                           <div key={lec.lecture_num}>
-                            <div className="font-semibold">
-                              LEC&nbsp;{lec.lecture_num}
-                              {lec.professor && ` — ${lec.professor}`}
+
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold">
+                                LEC&nbsp;{lec.lecture_num}
+                                {lec.professor && lec.professor !== ' ' && ` — ${lec.professor}`}
+                              </span>
+
+                              <span
+                                className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium
+                                  ${lec.open_seats > 0
+                                    ? 'border-green-600 text-green-600'
+                                    : 'border-red-600 text-red-600'
+                                  }`}
+                              >
+                                {lec.open_seats > 0 ? 'Open' : 'Closed'}
+                              </span>
                             </div>
+
                             <p className="text-sm text-muted-foreground">
                               Enrolled {lec.enrolled}/{lec.capacity}
                               &nbsp;·&nbsp;Open {lec.open_seats}
@@ -281,8 +298,8 @@ export default function CoursesPage() {
                                 {lec.discussions.map((d) => (
                                   <li key={d.section_num}>
                                     {d.section_type}&nbsp;{d.section_num}
-                                    &nbsp;—&nbsp;open&nbsp;{d.open_seats}/
-                                    {d.capacity}
+                                    &nbsp;—&nbsp;Open Seats:&nbsp;
+                                    <span className="font-bold">{d.open_seats}</span>
                                   </li>
                                 ))}
                               </ul>

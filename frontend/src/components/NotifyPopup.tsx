@@ -119,6 +119,8 @@ export default function NotifyPopup({
       if (res.ok) {
         toast.success('Notification saved!')
         onOpenChange(false)
+      } else if (res.status === 409) {
+        toast.error('You have already set this alert.')
       } else {
         throw new Error()
       }

@@ -1,6 +1,4 @@
 // app/api/my-courses/route.ts
-export const dynamic = 'force-dynamic'
-
 import { NextResponse } from 'next/server'
 import { adminAuth } from '@/lib/firebase-admin'
 import { Pool } from 'pg'
@@ -10,19 +8,29 @@ const TERM = parseInt(process.env.NEXT_PUBLIC_TERM ?? '1262', 10)
 
 export async function GET(req: Request) {
   try {
-    const token = (req.headers.get('authorization') || '').replace('Bearer ', '')
-    if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-    const { uid } = await adminAuth.verifyIdToken(token, true)
-    const { rows: [{ id: userId }] } = await pool.query(
+    const authHeader = req.headers.get('authorization') || ''
+    const token = authHeader.replace('Bearer ', '')
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const decoded = await adminAuth.verifyIdToken(token, true)
+    const uid = decoded.uid
+    const email = decoded.email || null
+
+    const {
+      rows: [{ id: userId }],
+    } = await pool.query(
       `
-        INSERT INTO users (firebase_uid)
-        VALUES ($1)
-        ON CONFLICT (firebase_uid)
-        DO UPDATE SET firebase_uid = EXCLUDED.firebase_uid
-        RETURNING id;
+      INSERT INTO users (firebase_uid, email)
+      VALUES ($1, $2)
+      ON CONFLICT (firebase_uid)
+      DO UPDATE SET
+        email = EXCLUDED.email
+      RETURNING id;
       `,
-      [uid]
+      [uid, email]
     )
 
     const { rows } = await pool.query(
@@ -39,9 +47,9 @@ export async function GET(req: Request) {
       ),
       agg AS (
         SELECT course_id,
-               SUM(open_seats)  AS total_open,
-               SUM(enrolled)    AS total_enr,
-               SUM(capacity)    AS total_cap,
+               SUM(open_seats)         AS total_open,
+               SUM(enrolled)           AS total_enr,
+               SUM(capacity)           AS total_cap,
                SUM(waitlist_open_spots) AS total_wl_open,
                SUM(waitlist_capacity)   AS total_wl_cap
         FROM secs
@@ -73,9 +81,12 @@ export async function GET(req: Request) {
       FROM alerts a
       JOIN secs s USING (course_id, section_num)
       JOIN agg  ag ON ag.course_id = s.course_id
-      GROUP BY s.course_id, s.course_name, s.course_title,
-               ag.total_open, ag.total_enr, ag.total_cap,
-               ag.total_wl_open, ag.total_wl_cap
+      GROUP BY
+        s.course_id,
+        s.course_name,
+        s.course_title,
+        ag.total_open, ag.total_enr, ag.total_cap,
+        ag.total_wl_open, ag.total_wl_cap
       ORDER BY s.course_name
       `,
       [userId, TERM]

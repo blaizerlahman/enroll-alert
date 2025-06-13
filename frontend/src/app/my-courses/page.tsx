@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { onAuthStateChanged } from 'firebase/auth'
+import { useRouter } from 'next/navigation'
 import { auth } from '@/lib/firebase'
 import Navbar from '@/components/Navbar'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
@@ -34,12 +35,12 @@ type MyCourse = {
 export default function MyCoursesPage() {
   const [courses, setCourses] = useState<MyCourse[]>([])
   const [loading, setLoading] = useState(true)
+  const router = useRouter()
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
       if (!u) {
-        setCourses([])
-        setLoading(false)
+        router.replace('/courses')
         return
       }
       const token = await u.getIdToken()
@@ -52,7 +53,7 @@ export default function MyCoursesPage() {
       setLoading(false)
     })
     return unsub
-  }, [])
+  }, [router])
 
   if (loading) return null
 
@@ -61,7 +62,9 @@ export default function MyCoursesPage() {
       <>
         <Navbar isSignedIn />
         <main className="pt-24 px-6 flex justify-center">
-          <p className="text-muted-foreground italic text-center text-lg">No alerts saved yet.</p>
+          <p className="text-muted-foreground italic text-center text-lg">
+            No alerts saved yet.
+          </p>
         </main>
       </>
     )
@@ -102,10 +105,13 @@ export default function MyCoursesPage() {
 
               <ul className="space-y-1">
                 {c.alerts.map((a) => (
-                  <li key={`${a.section_type}-${a.section_num}`} className="flex flex-col">
+                  <li
+                    key={`${a.section_type}-${a.section_num}`}
+                    className="flex flex-col"
+                  >
                     <div>
-                      {a.section_type} {a.section_num} — 
-                      Seats open: <strong>{a.open_seats}</strong> 
+                      {a.section_type} {a.section_num} — Seats open:{' '}
+                      <strong>{a.open_seats}</strong>
                     </div>
 
                     <div className="pl-[5.1rem]">

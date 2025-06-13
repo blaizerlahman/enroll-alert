@@ -69,31 +69,34 @@ export default function NotifyPopup({
   const singleBtn = singleSub || 'Select section'
 
   const submit = async () => {
+    if (!auth.currentUser) {
+      toast.error('You must be signed in to save alerts.')
+      return
+    }
     if (mode === 'any' && subsections.length > 0 && multiSubs.length === 0) {
       toast.error('Select at least one subsection.')
       return
     }
-    if (mode === 'threshold' && subsections.length > 0) {
-      if (subsections.length > 0)
-          if (!singleSub) {
-            toast.error('Select a subsection.')
-            return
-          }
-          if (+threshold > chosenOpenSeats) {
-            toast.error('Threshold exceeds current open seats.')
-            return
-          }
+    if (mode === 'threshold') {
+      if (subsections.length > 0) {
+        if (!singleSub) {
+          toast.error('Select a subsection.')
+          return
         }
-
-        else {
-          if (+threshold > openSeats) {
-            toast.error('Threshold exceeds current open seats.')
-            return
-          }
+        if (+threshold > chosenOpenSeats) {
+          toast.error('Threshold exceeds current open seats.')
+          return
         }
+      } else {
+        if (+threshold > openSeats) {
+          toast.error('Threshold exceeds current open seats.')
+          return
+        }
+      }
+    }
 
     try {
-      const token = await auth.currentUser?.getIdToken()
+      const token = await auth.currentUser.getIdToken()
       const body = {
         token,
         courseId,
@@ -179,7 +182,6 @@ export default function NotifyPopup({
                           {multiBtn}
                         </Button>
                       </PopoverTrigger>
-
                       <PopoverContent className="w-[220px] p-0">
                         <Command>
                           <CommandList>
@@ -202,7 +204,6 @@ export default function NotifyPopup({
                                 All sections
                               </Label>
                             </CommandItem>
-
                             {closedSubs.map(s => (
                               <CommandItem key={s.section_num}>
                                 <Checkbox
@@ -229,7 +230,6 @@ export default function NotifyPopup({
                   </label>
                 </div>
               )}
-
               {hasOpen && (
                 <div className="flex items-center gap-2">
                   <RadioGroupItem id="th" value="threshold" />
@@ -255,7 +255,6 @@ export default function NotifyPopup({
                           {singleBtn}
                         </Button>
                       </PopoverTrigger>
-
                       <PopoverContent className="w-[200px] p-0">
                         <Command>
                           <CommandList>

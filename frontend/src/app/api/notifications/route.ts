@@ -1,44 +1,69 @@
+// src/app/api/notifications/route.ts
 import { NextResponse } from 'next/server'
-import { auth } from '@/lib/firebase'
+import { adminAuth } from '@/lib/firebase-admin'
 import { Pool } from 'pg'
 
 const pool = new Pool({ connectionString: process.env.POSTGRES_URL })
 
 export async function POST(req: Request) {
   try {
-    const { uid } = await auth.verifyIdToken(
-      (await req.json()).token, true 
-    )
+    const {
+      token,
+      courseId,
+      sectionNum,   
+      alertType,     
+      seatThreshold,  
+    } = await req.json()
 
-    const { courseId, sectionNum, alertType, seatThreshold } =
-      await req.json()
+    const { uid: firebaseUid } = await adminAuth.verifyIdToken(token, true)
 
     if (
       !['any', 'threshold'].includes(alertType) ||
-      (alertType === 'threshold' && (seatThreshold ?? 0) < 1)
+      (alertType === 'threshold' && (!seatThreshold || seatThreshold < 1)) ||
+      !Array.isArray(sectionNum) ||
+      sectionNum.length === 0
     ) {
       return NextResponse.json({ error: 'Bad request' }, { status: 400 })
     }
 
-    await pool.query(
+    const {
+      rows: [{ id: userId }],
+    } = await pool.query(
       `
-      INSERT INTO user_courses
-        (user_id, course_id, section_num, alert_type, seat_threshold)
-      VALUES
-        ($1,        $2,       $3,          $4,         $5)
-      ON CONFLICT ON CONSTRAINT user_courses_user_id_course_id_section_num_key
-      DO UPDATE
-        SET alert_type = EXCLUDED.alert_type,
-            seat_threshold = EXCLUDED.seat_threshold,
-            created_at = now();
+        INSERT INTO users (firebase_uid)
+        VALUES ($1)
+        ON CONFLICT (firebase_uid)
+        DO UPDATE SET firebase_uid = EXCLUDED.firebase_uid   -- no-op
+        RETURNING id;
       `,
-      [uid, courseId, sectionNum, alertType, seatThreshold],
+      [firebaseUid]
     )
+
+    for (const section of sectionNum) {
+      await pool.query(
+        `
+          INSERT INTO user_courses
+                 (user_id, course_id, section_num,
+                  alert_type, seat_threshold)
+          VALUES   ($1,       $2,       $3,
+                    $4,       $5)
+          ON CONFLICT (user_id, course_id, section_num)
+          DO UPDATE
+             SET alert_type    = EXCLUDED.alert_type,
+                 seat_threshold = EXCLUDED.seat_threshold,
+                 created_at     = now();
+        `,
+        [userId, courseId, section, alertType, seatThreshold ?? null]
+      )
+    }
 
     return NextResponse.json({ ok: true })
   } catch (err) {
     console.error(err)
-    return NextResponse.json({ error: 'Unauthorized or server error' }, { status: 500 })
+    return NextResponse.json(
+      { error: 'Unauthorized or server error' },
+      { status: 500 }
+    )
   }
 }
 

@@ -23,7 +23,7 @@ import {
 import { Button } from '@/components/ui/button'
 import Navbar from '@/components/Navbar'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import NotifyPopup from '@/components/NotifyPopup'
+import NotifyPopup, { Subsection } from '@/components/NotifyPopup'
 
 type Course = {
   course_id: string
@@ -59,6 +59,13 @@ type Lecture = {
   discussions: Discussion[]
 }
 
+type NotifyTarget = {
+  courseId: string
+  section: string
+  openSeats: number
+  subsections: Subsection[]         
+}
+
 export default function CoursesPage() {
   const [user, setUser] = useState<User | null>(null)
   const [showAuth, setShowAuth] = useState(false)
@@ -80,9 +87,7 @@ export default function CoursesPage() {
   })
 
   const [notifyTarget, setNotifyTarget] =
-    useState<{ courseId: string; section: string; openSeats: number } | null>(
-      null,
-    )
+    useState<NotifyTarget | null>(null) 
 
   const [open, setOpen] = useState(false)
   const [page, setPage] = useState(1)
@@ -162,6 +167,7 @@ export default function CoursesPage() {
           courseId={notifyTarget.courseId}
           sectionNum={notifyTarget.section}
           openSeats={notifyTarget.openSeats}
+          subsections={notifyTarget.subsections}
         />
       )}
 
@@ -301,13 +307,19 @@ export default function CoursesPage() {
                               >
                                 {lec.open_seats > 0 ? 'Open' : 'Closed'}
                               </span>
+
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => setNotifyTarget({ 
-                                    courseId: course.course_id, 
+                                onClick={() =>
+                                  setNotifyTarget({
+                                    courseId: course.course_id,
                                     section: lec.lecture_num,
                                     openSeats: lec.open_seats,
+                                    subsections: lec.discussions.map((d) => ({
+                                      section_num: d.section_num,
+                                      open_seats: d.open_seats,
+                                    })),
                                   })
                                 }
                                 className="h-6 px-2 py-0 text-xs font-semibold border-blue-600 bg-blue-600/10 text-blue-700 hover:bg-blue-600/20"

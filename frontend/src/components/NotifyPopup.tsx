@@ -60,6 +60,7 @@ export default function NotifyPopup({
   }, [open, hasClosed])
 
   useEffect(() => {
+    if (!hasClosed && !hasOpen) return // when no subsections
     if (mode === 'any'       && !hasClosed) setMode('threshold')
     if (mode === 'threshold' && !hasOpen)   setMode('any')
   }, [mode, hasClosed, hasOpen])

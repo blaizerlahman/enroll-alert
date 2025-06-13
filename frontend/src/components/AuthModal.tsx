@@ -44,8 +44,11 @@ export default function AuthModal({ onClose }: { onClose: () => void }) {
       }
       onClose()
     } catch (err: any) {
-      console.error("Firebase auth error:", err)
-      setError(err.message || "Authentication failed.")
+      if (err.code === "auth/invalid-credential") {
+        setError("Incorrect e-mail or password.")
+      } else {
+        setError("Authentication failed. Please try again.")
+      }
     }
   }
 

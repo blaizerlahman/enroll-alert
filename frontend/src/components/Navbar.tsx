@@ -1,22 +1,28 @@
-import { useEffect, useState } from "react"
+"use client"
+
+import Image from "next/image" 
+import Link from "next/link"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
-import Image from "next/image"
+import { signOut } from "firebase/auth"
+import { auth } from "@/lib/firebase"
+
+type Props = {
+  search?: string
+  setSearch?: (val: string) => void
+  isSignedIn?: boolean
+  setShowAuth?: (b: boolean) => void
+}
 
 export default function Navbar({
   search,
   setSearch,
   isSignedIn,
   setShowAuth,
-}: {
-  search: string
-  setSearch: (val: string) => void
-  isSignedIn?: boolean
-}) {
+}: Props) {
   return (
     <header className="fixed top-0 w-full px-6 py-4 flex items-center justify-between bg-white border-b shadow-md z-50">
-      <div className="flex items-center space-x-4">
+      <Link href="/courses" className="flex items-center space-x-4">
         <Image
           src="/enrollalert_logo.png"
           alt="EnrollAlert logo"
@@ -24,30 +30,32 @@ export default function Navbar({
           height={60}
         />
         <span className="text-xl font-semibold">EnrollAlert</span>
-      </div>
+      </Link>
 
-      <div className="flex-1 mx-6 max-w-xl">
-        <Input
-          type="text"
-          placeholder="Search by course name, subject, or number"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-      </div>
-
-      <div className="ml-4">
-        {isSignedIn ? (
-          <Image
-            src="/default_profile.png"
-            alt="Profile Picture"
-            width={40}
-            height={40}
-            className ="rounded-full"
+      {search !== undefined && setSearch && (
+        <div className="flex-1 mx-6 max-w-xl">
+          <Input
+            type="text"
+            placeholder="Search…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
           />
+        </div>
+      )}
+
+      <nav className="ml-4 flex items-center gap-4">
+        {isSignedIn && <Link href="/my-courses">My Courses</Link>}
+
+        {isSignedIn ? (
+          <Button variant="outline" size="sm" onClick={() => signOut(auth)}>
+            Sign Out
+          </Button>
         ) : (
-          <Button variant="outline" onClick={() => setShowAuth(true)}>Sign In</Button>
+          <Button variant="outline" onClick={() => setShowAuth?.(true)}>
+            Sign In
+          </Button>
         )}
-      </div>
+      </nav>
     </header>
   )
 }

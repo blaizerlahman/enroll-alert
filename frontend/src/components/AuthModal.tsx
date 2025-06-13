@@ -1,51 +1,64 @@
+// components/AuthModal.tsx
 "use client"
 
 import { useState, useEffect, useRef } from "react"
 import { auth } from "@/lib/firebase"
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from "firebase/auth"
+import {
+  sendPasswordResetEmail,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+} from "firebase/auth"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { X } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
+import { toast } from "sonner"
+
+type Mode = "signin" | "signup" | "reset"
 
 export default function AuthModal({ onClose }: { onClose: () => void }) {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
-  const [mode, setMode] = useState<"signin" | "signup">("signin")
+  const [mode, setMode] = useState<Mode>("signin")
   const [error, setError] = useState("")
   const backdropRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (backdropRef.current && event.target === backdropRef.current) {
-        onClose()
-      }
+    function handleClickOutside(e: MouseEvent) {
+      if (backdropRef.current === e.target) onClose()
     }
     document.addEventListener("mousedown", handleClickOutside)
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside)
-    }
+    return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [onClose])
 
   useEffect(() => {
     document.body.style.overflow = "hidden"
-    return () => {
-      document.body.style.overflow = ""
-    }
+    return () => { document.body.style.overflow = "" }
   }, [])
 
-  const handleAuth = async () => {
+  const handleSubmit = async () => {
     setError("")
     try {
       if (mode === "signin") {
         await signInWithEmailAndPassword(auth, email, password)
-      } else {
+        onClose()
+      } else if (mode === "signup") {
         await createUserWithEmailAndPassword(auth, email, password)
+        onClose()
+      } else {
+        await sendPasswordResetEmail(auth, email)
+        toast.success("Password reset email sent!")
+        setMode("signin")
       }
-      onClose()
     } catch (err: any) {
-      console.error("Firebase auth error:", err)
-      setError(err.message || "Authentication failed.")
+      console.error(err)
+      if (mode === "reset") {
+        setError("Failed to send reset email.")
+      } else if (err.code === "auth/invalid-credential" || err.code === "auth/wrong-password") {
+        setError("Incorrect e-mail or password.")
+      } else {
+        setError("Authentication error. Please try again.")
+      }
     }
   }
 
@@ -74,7 +87,11 @@ export default function AuthModal({ onClose }: { onClose: () => void }) {
           </button>
 
           <h2 className="text-xl font-semibold mb-4 text-center">
-            {mode === "signin" ? "Sign In" : "Create Account"}
+            {mode === "signin"
+              ? "Sign In"
+              : mode === "signup"
+              ? "Create Account"
+              : "Reset Password"}
           </h2>
 
           <div className="space-y-3">
@@ -82,28 +99,41 @@ export default function AuthModal({ onClose }: { onClose: () => void }) {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="Email"
+              type="email"
             />
-            <Input
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Password"
-              type="password"
-            />
-            <Button onClick={handleAuth} className="w-full">
-              {mode === "signin" ? "Sign In" : "Sign Up"}
+            {mode !== "reset" && (
+              <Input
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Password"
+                type="password"
+              />
+            )}
+
+            <Button onClick={handleSubmit} className="w-full">
+              {mode === "signin"
+                ? "Sign In"
+                : mode === "signup"
+                ? "Sign Up"
+                : "Send reset link"}
             </Button>
 
             {error && <p className="text-red-500 text-sm">{error}</p>}
 
-            <p className="text-sm text-center text-muted-foreground">
-              {mode === "signin" ? (
+            <div className="text-center text-sm text-muted-foreground">
+              {mode === "signin" && (
                 <>
                   Don’t have an account?{" "}
                   <button className="underline" onClick={() => setMode("signup")}>
                     Sign up
                   </button>
+                  {" • "}
+                  <button className="underline" onClick={() => setMode("reset")}>
+                    Forgot password?
+                  </button>
                 </>
-              ) : (
+              )}
+              {mode === "signup" && (
                 <>
                   Already have an account?{" "}
                   <button className="underline" onClick={() => setMode("signin")}>
@@ -111,7 +141,15 @@ export default function AuthModal({ onClose }: { onClose: () => void }) {
                   </button>
                 </>
               )}
-            </p>
+              {mode === "reset" && (
+                <>
+                  Remembered your password?{" "}
+                  <button className="underline" onClick={() => setMode("signin")}>
+                    Back to sign in
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         </motion.div>
       </motion.div>

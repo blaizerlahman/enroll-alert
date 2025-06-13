@@ -14,6 +14,13 @@ import (
 type CoursePackage struct {
 	CourseCode  string  `json:"courseID"`
 	CatalogNum  string  `json:"catalogNumber"`
+	CourseTitle string  `json:"title"`
+
+	// structure of breadth section
+	BreadthSection []struct {
+		BreadthDescription  string `json:"description"`  
+		BreadthCode         string `json:"code"`
+	} `json:"breadths"`
 
 	// structure of subject section
 	Subject struct {

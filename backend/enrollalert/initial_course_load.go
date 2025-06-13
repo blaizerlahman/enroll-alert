@@ -119,7 +119,6 @@ func initialCourseLoad(courses []*CoursePackage) error {
 
 	var courseName  string
 	var subjectCode int
-	var termNum     int
 	
 	// extract course info from each course and insert them into Postgres courses table
 	for _, course := range courses {
@@ -132,24 +131,35 @@ func initialCourseLoad(courses []*CoursePackage) error {
 		if err != nil {
 			log.Printf("Invalid subject code: '%s': %v", course.Subject.SubjectCode, err)
 		}
-		termNum, err = strconv.Atoi(Term)
-		if err != nil {
-			log.Printf("Invalid term: '%s': %v", Term, err)
-		}
 
 		// insert course/subject code and course name into database 
 		_, err := pool.Exec(context.Background(), `
-			INSERT INTO public.courses (course_id, subject_id, course_name, term)
-			VALUES ($1, $2, $3, $4)
-			ON CONFLICT (course_id, subject_id, term)
-			DO UPDATE SET course_name = EXCLUDED.course_name
-		`, course.CourseCode, subjectCode, courseName, termNum)
+			INSERT INTO public.courses (course_id, subject_id, course_name, course_title, term)
+			VALUES ($1, $2, $3, $4, $5)
+			ON CONFLICT (course_id, term)
+			DO UPDATE SET 
+				course_name  = EXCLUDED.course_name,
+				course_title = EXCLUDED.course_title,
+				subjecT_id   = EXCLUDED.subject_id;
+		`, course.CourseCode, subjectCode, courseName, course.CourseTitle, TermNum)
 
 		if err != nil {
 			return fmt.Errorf("Insert failed for following course: %s | Course ID: %s | Subject ID: %s | Term %s\nError: %w",
-	courseName, course.CourseCode, course.Subject.SubjectCode, Term, err)
+				courseName, course.CourseCode, course.Subject.SubjectCode, Term, err)
 		}
 
+		// insert course breadth description/code into breadth table for future querying
+		for _, breadth := range course.BreadthSection {
+    	_, err := pool.Exec(context.Background(), `
+      	INSERT INTO course_breadths (course_id, term, breadth_code, breadth_description)
+      	VALUES ($1, $2, $3, $4)
+      	ON CONFLICT DO NOTHING;
+    	`, course.CourseCode, TermNum, breadth.BreadthCode, breadth.BreadthDescription)
+			if err != nil {
+				return fmt.Errorf("Insert for course breadth failed for the following course: %s\nBreadth: %s\n%w\n",
+					courseName, breadth.BreadthDescription, err)
+			}
+		}
 	}
 	
 	fmt.Println("Courses successfully added to database")
@@ -162,6 +172,7 @@ func initialCourseLoad(courses []*CoursePackage) error {
 // returns error if scraping or loading fails
 func InitialDriver(totalCourses int) error {
 
+	fmt.Println("Reached")
 	// get course info from scraping api
 	courseCodes, err := initialCourseScrape(totalCourses)
 	if err != nil {

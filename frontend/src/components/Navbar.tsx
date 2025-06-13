@@ -44,7 +44,13 @@ export default function Navbar({
       )}
 
       <nav className="ml-4 flex items-center gap-4">
-        {isSignedIn && <Link href="/my-courses">My Courses</Link>}
+        <Link href="/about" className="hover:underline">
+          About
+        </Link>
+
+        {isSignedIn && <Link href="/my-courses" className="hover:underline">
+          My Courses
+        </Link>}
 
         {isSignedIn ? (
           <Button variant="outline" size="sm" onClick={() => signOut(auth)}>

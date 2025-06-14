@@ -42,7 +42,8 @@ export default function AboutPage() {
 
         <hr className="border-t border-gray-200 my-12 w-full" />
 
-        {// TODO: add stripe functionality once site is live}
+        {// TODO: add stripe functionality once site is live
+        }
         <h1 className="text-3xl font-bold">Support</h1>
         <p>
           If you feel like this site has helped you and you would like to contribute to

@@ -1,22 +1,20 @@
-// components/AuthProviderWrapper.tsx
 "use client"
-
-import { useEffect, useState } from "react"
+import { useState, useEffect } from "react"
 import { onAuthStateChanged, User } from "firebase/auth"
 import { auth } from "@/lib/firebase"
 import Navbar from "@/components/Navbar"
+import AuthModal from "@/components/AuthModal"
 
-export default function AuthProviderWrapper({ children }: { children: React.ReactNode }) {
+export default function AuthProviderWrapper({ children }) {
   const [user, setUser] = useState<User | null>(null)
+  const [showAuth, setShowAuth] = useState(false)
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, setUser)
-    return unsubscribe
-  }, [])
+  useEffect(() => onAuthStateChanged(auth, setUser), [])
 
   return (
     <>
-      <Navbar isSignedIn={!!user} />
+      <Navbar isSignedIn={!!user} setShowAuth={setShowAuth} />
+      {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
       {children}
     </>
   )

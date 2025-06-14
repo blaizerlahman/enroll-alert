@@ -162,7 +162,7 @@ func initialCourseLoad(courses []*CoursePackage) error {
 		}
 	}
 	
-	fmt.Println("Courses successfully added to database")
+	log.Println("Courses successfully added to database")
 
 	return nil
 }
@@ -172,7 +172,6 @@ func initialCourseLoad(courses []*CoursePackage) error {
 // returns error if scraping or loading fails
 func InitialDriver(totalCourses int) error {
 
-	fmt.Println("Reached")
 	// get course info from scraping api
 	courseCodes, err := initialCourseScrape(totalCourses)
 	if err != nil {

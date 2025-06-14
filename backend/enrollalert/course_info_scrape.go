@@ -3,6 +3,7 @@ package enrollalert
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"io/ioutil"
 	"context"
 	"net/http"
@@ -96,7 +97,7 @@ func getSectionInfo(courseCodes *CourseCodes) ([]*EnrollmentPackage, error) {
 	}
 
 	if len(sections) == 0 {
-		fmt.Printf("No sections found for course %s.\n\n", courseCodes.CourseName)
+		log.Printf("No sections found for course %s.", courseCodes.CourseName)
 	}
 
 	// get pointers to each section
@@ -155,7 +156,7 @@ func courseInfoScrape(pool *pgxpool.Pool, courseCodes []*CourseCodes) []*Course 
 				// scrape section info 
 				enrollmentPackages, err := getSectionInfo(courseCode)
 				if err != nil {
-					fmt.Printf("Error getting section info for %s: %v\n", courseCode.CourseID, err)
+					log.Printf("Error getting section info for %s: %v\n", courseCode.CourseID, err)
 					continue
 				}
 
@@ -173,7 +174,7 @@ func courseInfoScrape(pool *pgxpool.Pool, courseCodes []*CourseCodes) []*Course 
 				}
 
 				if err != nil {
-					fmt.Printf("Error updating cache for %s: %v\n", courseCode.CourseID, err)
+					log.Printf("Error updating cache for %s: %v\n", courseCode.CourseID, err)
 				}
 
 				mutex.Lock()

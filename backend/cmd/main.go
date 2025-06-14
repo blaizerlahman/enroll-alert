@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
 	"time"
 	"context"
 	"os"
@@ -24,37 +25,46 @@ func main() {
 	enrollalert.TermNum = *termFlag
   enrollalert.Term    = fmt.Sprintf("%d", enrollalert.TermNum)
 
+	log.Printf("Startup: init=%t, count=%d, term=%d",
+		*initialFlag, *countFlag, *termFlag)
+
+	timeStart := time.Now()
+
 	// conduct initial course load if specified
-	if *initial {
+	if *initialFlag {
 		if err := enrollalert.InitialDriver(*countFlag); err != nil {
-			fmt.Printf("Error during initial load: %v\n", err)
+			log.Fatalf("Error during initial load: %v", err)
 		} 
+
+		log.Printf("Initial load successful (%s)", time.Since(timeStart))
 		return
 	}
 	
 	// perform Postgres DB connection
 	pool, err := pgxpool.New(context.Background(), os.Getenv("POSTGRES_URL"))
 	if err != nil {
-		fmt.Printf("Failed to connect to DB: %v\n", err)
-		return
-	}
+		log.Fatalf("Failed to connect to DB: %v", err)
+	} 
 	defer pool.Close()
-
-	fmt.Println("Connected from main")
 
 	// get course ids from existing courses table
 	courseIDs, err := enrollalert.GetAllCourseIDs(pool)
-	
-	start := time.Now()
+	if err != nil {
+		log.Fatalf("Error during course ID retrieval: %v", err)
+	}
 
+	log.Printf("Course ID retrieval successful.")
+	
 	// conduct course section info update
 	err = enrollalert.CourseInfoUpdateDriver(pool, courseIDs)
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
-	}
+		log.Fatalf("Error with course section info update: %v", err)
+	} 
 
-	elapsed := time.Since(start)
-	fmt.Printf("Scraper done in %s\n", elapsed)
+	log.Printf("Course section info update successful.")
+	
+	log.Printf("Course updating done in %s", time.Since(timeStart))
 
+	fmt.Printf("Course scrape and info update successful.")
 
 }

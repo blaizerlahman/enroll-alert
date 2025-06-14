@@ -26,7 +26,15 @@ export default function AboutPage() {
           If you have any feedback or notes, from anything to new features or how the site
           looks, please feel free to fill out a feedback form.
         </p>
-        <Button>Feedback</Button>
+        <Button asChild>
+          <Link 
+            href="https://form.jotform.com/251638644266161" 
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Give Feedback
+          </Link>
+        </Button>
 
         <hr className="border-t border-gray-200 my-12 w-full" />
 

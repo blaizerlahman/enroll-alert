@@ -3,6 +3,7 @@ package enrollalert
 import (
 	"context"
 	"fmt"
+	"log"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -124,8 +125,6 @@ func CourseInfoUpdateDriver(pool *pgxpool.Pool, courseNames []string) error {
 		return fmt.Errorf("Error with retrieving course info from database: %w", err)
 	}
 
-	fmt.Println(len(courseNames))
-	fmt.Println(len(courseCodes))
 	coursesSeatInfo := courseInfoScrape(pool, courseCodes)
 
 	err = updateSeatInfoDB(pool, coursesSeatInfo)
@@ -133,7 +132,7 @@ func CourseInfoUpdateDriver(pool *pgxpool.Pool, courseNames []string) error {
 		return fmt.Errorf ("Failed to update DB with course info: %w", err)
 	}
 
-	fmt.Println("Uploaded seat info to DB")
+	log.Println("Uploaded seat info to DB")
 
 	return nil
 }

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"log"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -72,7 +73,7 @@ func getCourseSubjectCode(term string, courseName string) (*CoursePackage, error
 	// assmeble request body
 	reqBody, err := json.Marshal(payload)
 	if err != nil {
-		fmt.Printf("Error with creating request reqBody: %s\n", err) 
+		log.Printf("Error with creating request reqBody: %s\n", err) 
 		return nil, err
 	}
 
@@ -81,7 +82,7 @@ func getCourseSubjectCode(term string, courseName string) (*CoursePackage, error
 	// create POST request with course search URL
 	request, err := http.NewRequest("POST", url, bytes.NewBuffer(reqBody))
 	if err != nil {
-		fmt.Printf("Error while creating POST request: %s\n", err)
+		log.Printf("Error while creating POST request: %s\n", err)
 		return nil, err
 	}
 
@@ -97,12 +98,12 @@ func getCourseSubjectCode(term string, courseName string) (*CoursePackage, error
 
 	client := &http.Client{}
 
-	fmt.Println("Sending request for:", courseName)
+	log.Println("Sending request for:", courseName)
 
 	// send request and receive json response
 	response, err := client.Do(request)
 	if err != nil {
-		fmt.Printf("Error sending request: %s\n", err)
+		log.Printf("Error sending request: %s\n", err)
 		return nil, err
 	}
 	defer response.Body.Close()
@@ -113,7 +114,7 @@ func getCourseSubjectCode(term string, courseName string) (*CoursePackage, error
 	// parse and structure response as a list of CoursePackages
 	var respStruct CourseResponse
 	if err := json.Unmarshal(respBody, &respStruct); err != nil {
-		fmt.Printf("Error with json unmarshal: %s\n", err)
+		log.Printf("Error with json unmarshal: %s\n", err)
 		return nil, err
 	}
 
@@ -135,7 +136,7 @@ func getCourseSubjectCode(term string, courseName string) (*CoursePackage, error
 	}
 
 	if !found {
-		fmt.Printf("Target course %s not found\n", courseName)
+		log.Printf("Target course %s not found\n", courseName)
 	}
 
 	return &targetCourse, nil
@@ -146,7 +147,7 @@ func getCourseSubjectCode(term string, courseName string) (*CoursePackage, error
 func courseSubjectCodeScrape(term string, courses []string) []*CoursePackage {
 	
 	if len(courses) == 0 {
-		fmt.Println("No courses to search. Exiting.")
+		log.Println("No courses to search. Exiting.")
 		return nil
 	}
 
@@ -155,7 +156,7 @@ func courseSubjectCodeScrape(term string, courses []string) []*CoursePackage {
 	for _, courseName := range courses {
 		currCourse, err := getCourseSubjectCode(term, courseName)
 		if err != nil {
-			fmt.Printf("Unable to get info for %s\n", courseName)
+			log.Printf("Unable to get info for %s\n", courseName)
 		} else {
 			coursePackages = append(coursePackages, currCourse)
 		}

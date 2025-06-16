@@ -2,5 +2,7 @@
 .env.local
 .env.*
 
+.glimpse
+*.log
 node_modules/
 dist/

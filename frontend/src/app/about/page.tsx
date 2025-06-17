@@ -53,7 +53,7 @@ export default function AboutPage() {
         <Button>Donate</Button>
       </section>
 
-      <footer className="mt-16 border-t pt-6 flex flex-row justify-center items-center space-x-4 pb-12">
+      <footer className="mt-16 border-t pt-6 flex flex-wrap flex-row justify-center items-center space-x-4 pb-12">
         <Image
           src="/enrollalert_logo.png"
           alt="EnrollAlert logo"
@@ -73,6 +73,9 @@ export default function AboutPage() {
         <Link href="https://github.com/blaizerlahman" target="_blank">
           <Github className="size-6" />
         </Link>
+        <p className="w-full text-center mt-4">
+          Unaffiliated with UW-Madison
+        </p>
       </footer>
     </div>
   )

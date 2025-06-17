@@ -2,6 +2,7 @@
 .env.local
 .env.*
 
+*.dump
 .glimpse
 *.log
 node_modules/

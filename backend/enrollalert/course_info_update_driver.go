@@ -3,6 +3,7 @@ package enrollalert
 import (
 	"context"
 	"fmt"
+	"time"
 	"log"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -12,6 +13,27 @@ type CourseCodes struct {
 	SubjectID      string
 	CourseName     string
 	CourseTitle    string
+}
+
+// batchCourseIDs is a helper function that creates batches of size batchSize
+// of course IDs and returns them
+// returns a list of batches of course IDs
+func batchCourseIDs(courseIDs []*CourseCodes, batchSize int) [][]*CourseCodes {
+
+	var batches [][]*CourseCodes
+
+	// iterate through courseIDs, separating them into batches of batchSize IDs
+	for startIdx := 0; startIdx < len(courseIDs); startIdx += batchSize {
+
+		endIdx := startIdx + batchSize
+
+		// set endIdx to last ID if batch is at end
+		if endIdx > len(courseIDs) {endIdx = len(courseIDs)}
+
+		batches = append(batches, courseIDs[startIdx:endIdx])
+	}
+
+	return batches
 }
 
 // getCourseCodesFromDB Queries course and subject codes using course name and creates a list of
@@ -117,7 +139,7 @@ func updateSeatInfoDB(pool *pgxpool.Pool, coursesSeatInfo []*Course) error {
 // course seat info from UW Madison enrollment API. Uses scraped data to update Postgres database for
 // specified courses
 // Returns error on failure
-func CourseInfoUpdateDriver(pool *pgxpool.Pool, courseNames []string) error {
+func CourseInfoUpdateDriver(pool *pgxpool.Pool, courseNames []string, batchSize int) error {
 
 	// get course codes from database for specified courses
 	courseCodes, err := getCourseCodesFromDB(pool, courseNames)
@@ -125,14 +147,29 @@ func CourseInfoUpdateDriver(pool *pgxpool.Pool, courseNames []string) error {
 		return fmt.Errorf("Error with retrieving course info from database: %w", err)
 	}
 
-	coursesSeatInfo := courseInfoScrape(pool, courseCodes)
+	// batch course IDs
+	batches := batchCourseIDs(courseCodes, batchSize)
 
-	err = updateSeatInfoDB(pool, coursesSeatInfo)
-	if err != nil {
-		return fmt.Errorf ("Failed to update DB with course info: %w", err)
+	const delay = 5 * time.Second
+
+	// perform API scrape and DB upload in batches
+	for i, courseIDBatch:= range batches {
+
+		coursesSeatInfo := courseInfoScrape(pool, courseIDBatch)
+
+		err = updateSeatInfoDB(pool, coursesSeatInfo)
+		if err != nil {
+			return fmt.Errorf ("Failed to update DB with course info: %w", err)
+		}
+
+		// delay next batch
+		if i < len(batches) - 1 {
+			time.Sleep(delay)
+		}
 	}
 
 	log.Println("Uploaded seat info to DB")
+	
 
 	return nil
 }

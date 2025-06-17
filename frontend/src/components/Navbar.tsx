@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useEffect } from 'react'
 import Image from "next/image" 
 import Link from "next/link"
 import { Input } from "@/components/ui/input"
@@ -15,11 +16,27 @@ type Props = {
 }
 
 export default function Navbar({
-  search,
+  search = '',
   setSearch,
   isSignedIn,
   setShowAuth,
 }: Props) {
+
+  const [liveSearch, setLiveSearch] = useState(search)
+
+  useEffect(() => {
+    setLiveSearch(search)
+  }, [search])
+
+  // set delay during search to slow API calls
+  useEffect(() => {
+    if (!setSearch) return
+    const timer = setTimeout(() => {
+      setSearch(liveSearch)
+    }, 200)
+    return () => clearTimeout(timer)
+  }, [liveSearch, setSearch])
+
   return (
     <header className="fixed top-0 w-full px-6 py-4 flex items-center justify-between bg-white border-b shadow-md z-50">
       <Link href="/courses" className="flex items-center space-x-4">
@@ -32,13 +49,13 @@ export default function Navbar({
         <span className="text-xl font-semibold">EnrollAlert</span>
       </Link>
 
-      {search !== undefined && setSearch && (
+      {setSearch && (
         <div className="flex-1 mx-6 max-w-xl">
           <Input
             type="text"
             placeholder="Search…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            value={liveSearch}
+            onChange={(e) => setLiveSearch(e.target.value)}
           />
         </div>
       )}

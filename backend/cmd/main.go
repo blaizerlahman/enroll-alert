@@ -19,6 +19,10 @@ func main() {
 
 	// check for term number (Fall 2025 as default)
 	termFlag    := flag.Int("term", 1262, "term number to load courses for")
+
+	// check for batch size (100 as deafult)
+	batchSize   := flag.Int("batchsize", 100, "batch size of API calls")
+	
 	flag.Parse()
 
 	// set term number
@@ -56,7 +60,7 @@ func main() {
 	log.Printf("Course ID retrieval successful.")
 	
 	// conduct course section info update
-	err = enrollalert.CourseInfoUpdateDriver(pool, courseIDs)
+	err = enrollalert.CourseInfoUpdateDriver(pool, courseIDs, *batchSize)
 	if err != nil {
 		log.Fatalf("Error with course section info update: %v", err)
 	} 

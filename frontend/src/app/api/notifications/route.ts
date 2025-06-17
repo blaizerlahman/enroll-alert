@@ -36,6 +36,26 @@ export async function POST(req: Request) {
       [firebaseUid, email]
     )
 
+    // get number of already existing alerts for the user
+    const {
+      rows: [{ count: existingAlerts }],
+    } = await pool.query<{ count: number }>(
+      `SELECT COUNT(*)::int AS count
+       FROM user_courses
+       WHERE user_id = $1`,
+      [userId],
+    );
+
+    // check if adding selected alerts will put user over limit and return error if so
+    if (existingAlerts + sectionNum.length > 20) {
+      return NextResponse.json(
+        { error: `You can only save up to 20 alerts (you have ${existingAlerts}).`},
+        { status: 410}
+      );
+    }
+
+    // check each selected section and return an error if any already exist
+    // and return error if so
     for (const sec of sectionNum) {
       const { rows: [{ exists }] } = await pool.query<[{ exists: boolean }]>(
         `
@@ -58,6 +78,7 @@ export async function POST(req: Request) {
         )
       }
 
+      // insert course alert into DB
       await pool.query(
         `
         INSERT INTO user_courses

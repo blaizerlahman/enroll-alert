@@ -50,8 +50,9 @@ export default function AuthModal({ onClose }: { onClose: () => void }) {
         toast.success("Password reset email sent!")
         setMode("signin")
       }
-    } catch (err: any) {
-      console.error(err)
+    } catch (err: unknown) {
+      const error = err as { code?: string }
+
       if (mode === "reset") {
         setError("Failed to send reset email.")
       } else if (err.code === "auth/invalid-credential" || err.code === "auth/wrong-password") {

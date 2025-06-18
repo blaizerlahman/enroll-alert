@@ -102,6 +102,8 @@ export async function POST(req: Request) {
 
 export async function DELETE(req: Request) {
   try {
+
+    const adminAuth = getAdminAuth()
     const { token, courseId, sectionNum } = await req.json()
     const { uid: firebaseUid } = await adminAuth.verifyIdToken(token, true)
 

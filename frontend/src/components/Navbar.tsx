@@ -1,12 +1,13 @@
-"use client"
+'use client'
 
 import { useState, useEffect } from 'react'
-import Image from "next/image" 
-import Link from "next/link"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { signOut } from "firebase/auth"
-import { auth } from "@/lib/firebase"
+import Image from 'next/image'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import { signOut } from 'firebase/auth'
+import { auth } from '@/lib/firebase'
 
 type Props = {
   search?: string
@@ -23,12 +24,21 @@ export default function Navbar({
 }: Props) {
 
   const [liveSearch, setLiveSearch] = useState(search)
+  const pathname = usePathname()
+  const [showSearchBar, setShowSearchBar] = useState(false)
+
+  // slightly delay search bar appearing to avoid jankyness
+  useEffect(() => {
+    if (setSearch) {
+      const timer = setTimeout(() => setShowSearchBar(true), 200)
+      return () => clearTimeout(timer)
+    }
+  }, [setSearch])
 
   useEffect(() => {
     setLiveSearch(search)
   }, [search])
 
-  // set delay during search to slow API calls
   useEffect(() => {
     if (!setSearch) return
     const timer = setTimeout(() => {
@@ -49,8 +59,8 @@ export default function Navbar({
         <span className="text-xl font-semibold">EnrollAlert</span>
       </Link>
 
-      {setSearch && (
-        <div className="flex-1 mx-6 max-w-xl">
+      {setSearch && showSearchBar && (
+        <div className="flex-1 mx-6 max-w-xl"> 
           <Input
             type="text"
             placeholder="Search…"
@@ -61,16 +71,26 @@ export default function Navbar({
       )}
 
       <nav className="ml-4 flex items-center gap-4">
+        {pathname !== '/courses' && (
+          <Link href="/courses" className="hover:underline">
+            Course Search
+          </Link>
+        )}
         <Link href="/about" className="hover:underline">
           About
         </Link>
-
-        {isSignedIn && <Link href="/my-courses" className="hover:underline">
-          My Courses
-        </Link>}
-
+        {isSignedIn && (
+          <Link href="/my-courses" className="hover:underline">
+            My Courses
+          </Link>
+        )}
         {isSignedIn ? (
-          <Button variant="outline" size="sm" onClick={() => signOut(auth)}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="border-red-500 text-red-500 hover:bg-red-500 hover:text-white"
+            onClick={() => signOut(auth)}
+          >
             Sign Out
           </Button>
         ) : (
@@ -82,4 +102,3 @@ export default function Navbar({
     </header>
   )
 }
-

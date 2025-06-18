@@ -57,7 +57,7 @@ export async function POST(req: Request) {
     // check each selected section and return an error if any already exist
     // and return error if so
     for (const sec of sectionNum) {
-      const { rows: [{ exists }] } = await pool.query<[{ exists: boolean }]>(
+      const { rows: [{ exists }] } = await pool.query<{ exists: boolean }>(
         `
         SELECT EXISTS(
           SELECT 1

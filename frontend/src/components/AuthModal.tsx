@@ -50,7 +50,8 @@ export default function AuthModal({ onClose }: { onClose: () => void }) {
         toast.success("Password reset email sent!")
         setMode("signin")
       }
-    } catch (err: unknown) {
+    } catch (err) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const error = err as { code?: string }
 
       if (mode === "reset") {

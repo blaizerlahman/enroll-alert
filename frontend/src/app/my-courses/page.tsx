@@ -1,3 +1,4 @@
+// app/my-courses/page.tsx
 'use client'
 
 import { useEffect, useState } from 'react'
@@ -73,7 +74,7 @@ export default function MyCoursesPage() {
     if (!confirmTarget) return
 
     const user = auth.currentUser
-    const token = await user.getIdToken()
+    const token = await user!.getIdToken()
 
     const res = await fetch('/api/notifications', {
       method: 'DELETE',
@@ -86,7 +87,6 @@ export default function MyCoursesPage() {
     })
     if (res.ok) {
       toast.success('Notification removed')
-      // update local state
       setCourses((prev) =>
         prev
           .map((course) =>
@@ -128,9 +128,9 @@ export default function MyCoursesPage() {
 
       <main className="pt-24 px-6 space-y-4">
         {courses.map((course) => (
-          <Card key={course.course_id}>
+          <Card key={course.course_id} className="border-2 border-red-200">
             <CardHeader className="flex justify-between">
-              <CardTitle className="text-lg">
+              <CardTitle className="text-lg text-red-700">
                 {course.course_name} –{' '}
                 <span className="font-normal text-muted-foreground">
                   {course.course_title}

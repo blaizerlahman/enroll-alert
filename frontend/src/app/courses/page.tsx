@@ -159,7 +159,6 @@ export default function CoursesPage() {
 
   return (
     <div>
-
       {notifyTarget && (
         <NotifyPopup
           open={!!notifyTarget}
@@ -240,10 +239,13 @@ export default function CoursesPage() {
           courses.map((course, idx) => {
             const isOpen = course.total_open_seats > 0
             return (
-              <Card key={`${course.course_id}-${idx}`}>
+              <Card
+                key={`${course.course_id}-${idx}`}
+                className="border-2 border-red-200"
+              >
                 <CardHeader className="flex justify-between items-start sm:items-center">
                   <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                    <CardTitle className="text-lg">
+                    <CardTitle className="text-lg text-red-700">
                       {course.course_name}&nbsp;–&nbsp;
                       <span className="font-normal text-muted-foreground">
                         {course.course_title}
@@ -284,14 +286,13 @@ export default function CoursesPage() {
                     <span className="inline-flex items-center rounded-full border-2 px-3 py-1 text-base font-medium">
                       Waitlist:&nbsp;{course.total_waitlist_open}/{course.total_waitlist_capacity}
                     </span>
-                  </div>  
+                  </div>
 
                   {expanded[course.course_id] &&
                     sections[course.course_id] && (
                       <div className="space-y-3 mt-3">
                         {sections[course.course_id].map((lec) => (
                           <div key={lec.lecture_num}>
-
                             <div className="flex items-center gap-2">
                               <span className="font-semibold">
                                 LEC&nbsp;{lec.lecture_num}
@@ -299,11 +300,11 @@ export default function CoursesPage() {
                               </span>
 
                               <span
-                                className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium
-                                  ${lec.open_seats > 0
+                                className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${
+                                  lec.open_seats > 0
                                     ? 'border-green-600 text-green-600'
                                     : 'border-red-600 text-red-600'
-                                  }`}
+                                }`}
                               >
                                 {lec.open_seats > 0 ? 'Open' : 'Closed'}
                               </span>

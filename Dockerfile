@@ -29,7 +29,7 @@ FROM public.ecr.aws/amazonlinux/amazonlinux:2023 AS runtime
 WORKDIR /srv/app
 
 RUN yum -y update && \
-    yum -y install nodejs20  && \  
+    yum -y install nodejs20 && \  
     yum clean all && \
     rm -rf /var/cache/yum
 
@@ -41,6 +41,8 @@ RUN npm install --omit=dev --ignore-scripts --prefer-offline
 
 ENV PORT=3000
 EXPOSE 3000
-ENTRYPOINT ["/usr/bin/tini","--"]
+
+ENTRYPOINT ["/bin/sh","-c"]
+CMD ["/usr/local/bin/enrollalert & npx next start -p $PORT"]
 CMD ["sh","-c","enrollalert & npx next start -p $PORT"]
 

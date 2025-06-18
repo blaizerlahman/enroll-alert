@@ -1,12 +1,13 @@
-// app/api/notifications/route.ts
 import { NextResponse } from 'next/server'
-import { adminAuth } from '@/lib/firebase-admin'
+import { getAdminAuth } from '@/lib/firebase-admin'
 import { Pool } from 'pg'
 
 const pool = new Pool({ connectionString: process.env.POSTGRES_URL })
 
 export async function POST(req: Request) {
   try {
+
+    const adminAuth = getAdminAuth()
     const { token, courseId, sectionNum, alertType, seatThreshold } = await req.json()
     const decoded = await adminAuth.verifyIdToken(token, true)
     const firebaseUid = decoded.uid

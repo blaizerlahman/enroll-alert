@@ -13,8 +13,8 @@ export async function middleware(req: NextRequest) {
     pathname.startsWith('/api/sections') ||
     pathname.startsWith('/api/discussions')
   ) {
-    const ip = req.ip ?? req.headers.get('x-forwarded-for') ?? 'unknown'
     try {
+      const ip = (req as any).ip ?? req.headers.get('x-forwarded-for') ?? 'unknown'
       await limiter.consume(ip)
     } catch {
       return new NextResponse('Too Many Requests', { status: 429 })

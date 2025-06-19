@@ -50,10 +50,10 @@ export default function AuthModal({ onClose }: { onClose: () => void }) {
         toast.success("Password reset email sent!")
         setMode("signin")
       }
-    } catch (err) {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const error = err as { code?: string }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (err: any) {
+      console.error(err)
       if (mode === "reset") {
         setError("Failed to send reset email.")
       } else if (err.code === "auth/invalid-credential" || err.code === "auth/wrong-password") {

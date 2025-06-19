@@ -63,7 +63,7 @@ export async function getFilteredCourses({
   const offset = (page - 1) * perPage
 
   const values = []
-  let whereClauses = [`section_type = 'LEC'`]
+  const whereClauses = [`section_type = 'LEC'`]
   let orderByClause = ''
 
 

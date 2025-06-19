@@ -19,6 +19,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <AuthProviderWrapper>{children}</AuthProviderWrapper>
         <Toaster/>
+        <Analytics/>
       </body>
     </html>
   )

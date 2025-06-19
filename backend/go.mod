@@ -8,6 +8,7 @@ require (
 	github.com/antchfx/htmlquery v1.3.4 // indirect
 	github.com/antchfx/xmlquery v1.4.4 // indirect
 	github.com/antchfx/xpath v1.3.3 // indirect
+	github.com/aws/aws-lambda-go v1.49.0 // indirect
 	github.com/bits-and-blooms/bitset v1.22.0 // indirect
 	github.com/corpix/uarand v0.2.0 // indirect
 	github.com/go-rod/rod v0.116.2 // indirect

@@ -98,6 +98,7 @@ export default function CoursesPage() {
     return () => unsub()
   }, [])
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     const filtersChanged =
       search !== prevFilters.search ||

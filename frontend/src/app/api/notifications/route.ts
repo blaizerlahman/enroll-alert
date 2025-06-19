@@ -1,12 +1,13 @@
-// app/api/notifications/route.ts
 import { NextResponse } from 'next/server'
-import { adminAuth } from '@/lib/firebase-admin'
+import { getAdminAuth } from '@/lib/firebase-admin'
 import { Pool } from 'pg'
 
 const pool = new Pool({ connectionString: process.env.POSTGRES_URL })
 
 export async function POST(req: Request) {
   try {
+
+    const adminAuth = getAdminAuth()
     const { token, courseId, sectionNum, alertType, seatThreshold } = await req.json()
     const decoded = await adminAuth.verifyIdToken(token, true)
     const firebaseUid = decoded.uid
@@ -57,7 +58,7 @@ export async function POST(req: Request) {
     // check each selected section and return an error if any already exist
     // and return error if so
     for (const sec of sectionNum) {
-      const { rows: [{ exists }] } = await pool.query<[{ exists: boolean }]>(
+      const { rows: [{ exists }] } = await pool.query<{ exists: boolean }>(
         `
         SELECT EXISTS(
           SELECT 1
@@ -101,6 +102,8 @@ export async function POST(req: Request) {
 
 export async function DELETE(req: Request) {
   try {
+
+    const adminAuth = getAdminAuth()
     const { token, courseId, sectionNum } = await req.json()
     const { uid: firebaseUid } = await adminAuth.verifyIdToken(token, true)
 

@@ -1,6 +1,5 @@
-// app/api/my-courses/route.ts
 import { NextResponse } from 'next/server'
-import { adminAuth } from '@/lib/firebase-admin'
+import { getAdminAuth } from '@/lib/firebase-admin'
 import { Pool } from 'pg'
 
 const pool = new Pool({ connectionString: process.env.POSTGRES_URL })
@@ -15,6 +14,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const adminAuth = getAdminAuth()
     const decoded = await adminAuth.verifyIdToken(token, true)
     const uid = decoded.uid
     const email = decoded.email || null
@@ -98,4 +98,3 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'Server error' }, { status: 500 })
   }
 }
-

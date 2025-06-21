@@ -20,7 +20,7 @@ var (
 	parseOnce     sync.Once
 )
 
-type config struct {
+type Config struct {
 	init      bool
 	count     int
 	term      int
@@ -28,47 +28,42 @@ type config struct {
 	pgURL     string
 }
 
-func envOrFlagBool(env string, def bool) bool {
-	if v, ok := os.LookupEnv(env); ok {
-		b, err := strconv.ParseBool(v)
-		if err == nil {
-			return b
-		}
+func envBool(k string, d bool) bool {
+	if v, ok := os.LookupEnv(k); ok {
+		b, _ := strconv.ParseBool(v)
+		return b
 	}
-	return def
+	return d
 }
 
-func envOrFlagInt(env string, def int) int {
-	if v, ok := os.LookupEnv(env); ok {
-		i, err := strconv.Atoi(v)
-		if err == nil {
-			return i
-		}
+func envInt(k string, d int) int {
+	if v, ok := os.LookupEnv(k); ok {
+		i, _ := strconv.Atoi(v)
+		return i
 	}
-	return def
+	return d
 }
 
-func loadConfig() config {
+func load() Config {
 	parseOnce.Do(flag.Parse)
-
-	return config{
-		init:      envOrFlagBool("INIT", *initFlag),
-		count:     envOrFlagInt("COUNT", *countFlag),
-		term:      envOrFlagInt("TERM", *termFlag),
-		batchSize: envOrFlagInt("BATCHSIZE", *batchSizeFlag),
+	return Config{
+		init:      envBool("INIT", *initFlag),
+		count:     envInt("COUNT", *countFlag),
+		term:      envInt("TERM", *termFlag),
+		batchSize: envInt("BATCHSIZE", *batchSizeFlag),
 		pgURL:     os.Getenv("POSTGRES_URL"),
 	}
 }
 
-func run(ctx context.Context, cfg config) error {
-	enrollalert.TermNum = cfg.term
-	enrollalert.Term = strconv.Itoa(cfg.term)
+func run(ctx context.Context, c Config) error {
+	enrollalert.TermNum = c.term
+	enrollalert.Term = strconv.Itoa(c.term)
 
-	if cfg.init {
-		return enrollalert.InitialDriver(cfg.count)
+	if c.init {
+		return enrollalert.InitialDriver(c.count)
 	}
 
-	pool, err := pgxpool.New(ctx, cfg.pgURL)
+	pool, err := pgxpool.New(ctx, c.pgURL)
 	if err != nil {
 		return err
 	}
@@ -78,11 +73,19 @@ func run(ctx context.Context, cfg config) error {
 	if err != nil {
 		return err
 	}
-	return enrollalert.CourseInfoUpdateDriver(pool, ids, cfg.batchSize)
+	if err := enrollalert.CourseInfoUpdateDriver(pool, ids, c.batchSize); err != nil {
+		return err
+	}
+
+	mail, err := enrollalert.NewEmailClient(ctx, os.Getenv("EMAIL_FROM"))
+	if err != nil {
+		return err
+	}
+	return enrollalert.NotifyMatchingAlerts(ctx, pool, mail, enrollalert.TermNum)
 }
 
 func handler(ctx context.Context) error {
-	return run(ctx, loadConfig())
+	return run(ctx, load())
 }
 
 func main() {
@@ -90,7 +93,7 @@ func main() {
 		lambda.Start(handler)
 		return
 	}
-	if err := run(context.Background(), loadConfig()); err != nil {
+	if err := run(context.Background(), load()); err != nil {
 		log.Fatal(err)
 	}
 }

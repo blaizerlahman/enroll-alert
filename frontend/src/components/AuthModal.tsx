@@ -17,6 +17,7 @@ import { toast } from "sonner"
 type Mode = "signin" | "signup" | "reset"
 
 export default function AuthModal({ onClose }: { onClose: () => void }) {
+
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [mode, setMode] = useState<Mode>("signin")
@@ -43,8 +44,18 @@ export default function AuthModal({ onClose }: { onClose: () => void }) {
         await signInWithEmailAndPassword(auth, email, password)
         onClose()
       } else if (mode === "signup") {
-        await createUserWithEmailAndPassword(auth, email, password)
+
+        const credentials = await createUserWithEmailAndPassword(auth, email, password)
+        const token = await.cred.user.getIdToken()
+      
+        // call endpoint to send welcome email
+        fetch("/api/welcome", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token })
+        })
         onClose()
+
       } else {
         await sendPasswordResetEmail(auth, email)
         toast.success("Password reset email sent!")

@@ -25,75 +25,96 @@ type Config struct {
 	count     int
 	term      int
 	batchSize int
-	pgURL     string
+	postgresURL     string
 }
 
-func envBool(k string, d bool) bool {
-	if v, ok := os.LookupEnv(k); ok {
-		b, _ := strconv.ParseBool(v)
-		return b
+// envBool Parse boolean flag for given input.
+// Return input boolean or default if no given input.
+func envBool(search string, defaultFlag bool) bool {
+	if var, ok := os.LookupEnv(search); ok {
+		boolFlag, _ := strconv.ParseBool(var)
+		return boolFlag
 	}
-	return d
+	return defaultFlag
 }
 
-func envInt(k string, d int) int {
-	if v, ok := os.LookupEnv(k); ok {
-		i, _ := strconv.Atoi(v)
-		return i
+// envInt Parse integer flag for given input.
+// Return input integer or default if no given input
+func envInt(search string, defaultFlag int) int {
+	if var, ok := os.LookupEnv(search); ok {
+		intFlag, _ := strconv.Atoi(var)
+		return intFlag
 	}
-	return d
+	return defaultFlag
 }
 
-func load() Config {
+// loadConfig Parse input flags and load DB URL.
+// Return config object containing flags and DB URL.
+func loadConfig() Config {
 	parseOnce.Do(flag.Parse)
 	return Config{
 		init:      envBool("INIT", *initFlag),
 		count:     envInt("COUNT", *countFlag),
 		term:      envInt("TERM", *termFlag),
 		batchSize: envInt("BATCHSIZE", *batchSizeFlag),
-		pgURL:     os.Getenv("POSTGRES_URL"),
+		postgresURL:     os.Getenv("POSTGRES_URL"),
 	}
 }
 
+// run Runs all scraping functions including retrieving course IDs, scraping course data from
+// UW-Madison Course Search & Enroll API, updating DB with new course info, and emailing users
+// if new course info satisfies their conditions for an alert.
+// Return error if error encountered during scraping
 func run(ctx context.Context, c Config) error {
 	enrollalert.TermNum = c.term
 	enrollalert.Term = strconv.Itoa(c.term)
 
+	// run initial DB loading if specified
 	if c.init {
 		return enrollalert.InitialDriver(c.count)
 	}
 
-	pool, err := pgxpool.New(ctx, c.pgURL)
+	// establish DB connection
+	pool, err := pgxpool.New(ctx, c.postgresURL)
 	if err != nil {
 		return err
 	}
 	defer pool.Close()
 
+	// grab course IDs from DB
 	ids, err := enrollalert.GetAllCourseIDs(pool)
 	if err != nil {
 		return err
 	}
+
+	// scrape API for course section info and update DB
 	if err := enrollalert.CourseInfoUpdateDriver(pool, ids, c.batchSize); err != nil {
 		return err
 	}
 
+	// create SES email client
 	mail, err := enrollalert.NewEmailClient(ctx, os.Getenv("EMAIL_FROM"))
 	if err != nil {
 		return err
 	}
+
+	// send alert emails to users
 	return enrollalert.NotifyMatchingAlerts(ctx, pool, mail, enrollalert.TermNum)
 }
 
+// handler Handler for scraping driver.
+// Return error if error with scraping.
 func handler(ctx context.Context) error {
-	return run(ctx, load())
+	return run(ctx, loadConfig())
 }
 
+// main Main function for AWS Lambda
 func main() {
 	if os.Getenv("AWS_LAMBDA_FUNCTION_NAME") != "" {
 		lambda.Start(handler)
 		return
 	}
-	if err := run(context.Background(), load()); err != nil {
+	if err := run(context.Background(), loadConfig()); err != nil {
 		log.Fatal(err)
 	}
 }

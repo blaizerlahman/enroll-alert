@@ -15,7 +15,7 @@ EnrollAlert is inspired by [Madgrades](https://madgrades.com/) and strives to ma
 * **Account security**: Firebase authentication and Supabase Row-Level-Security protect user info and requests.
 
 ## Architecture
-This [diagram](https://excalidraw.com/#json=EtAxdgVJvC4ljiklX6Lbq,0gplpgcVAYaZrhMYSNrFLA) gives an overview of the project architecture (warning: I am not artistically inclined) and below is a bried summary of the different project components.
+This [diagram](https://excalidraw.com/#json=EtAxdgVJvC4ljiklX6Lbq,0gplpgcVAYaZrhMYSNrFLA) gives an overview of the project architecture (warning: I am not artistically inclined) and below is a brief summary of the different project components.
 
 * **Scraper**: Go program that can be run via AWS Lambda `cmd/lambda/main.go` or locally `cmd/main.go`. On initial run it grabs course ID's from UW-Madison's general search API and uploads them to DB. On subsequent runs it grabs course ID's and uses them to access APIs for individual UW-Madison courses, requesting seat info for lectures and subsections before uploading to DB. Uses batching and goroutines to quickly scrape 5000+ course pages without stressing API.
 

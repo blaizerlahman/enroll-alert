@@ -23,7 +23,7 @@ export async function POST(req: Request) {
     } = await pool.query(
       `INSERT INTO users (firebase_uid, email)
        VALUES ($1,$2)
-       ON CONFLICT (firebase_uid) DO UPDATE SET email=EXCLUDED.email
+       ON CONFLICT (email) DO UPDATE SET email=EXCLUDED.email
        RETURNING welcome_sent`,
       [uid, email],
     )

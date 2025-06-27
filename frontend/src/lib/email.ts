@@ -2,7 +2,7 @@ import { SESv2Client, SendEmailCommand } from '@aws-sdk/client-sesv2'
 
 const client = new SESv2Client({ region: process.env.AWS_REGION })
 const FROM = process.env.EMAIL_FROM!
-const WELCOME_TEMPLATE = process.env.WELCOME_TEMPLATE;
+const WELCOME_TEMPLATE = process.env.WELCOME_TEMPLATE ?? 'enrollalert_welcome'
 
 async function sendTemplate(to: string, templateName: string, data: Record<string, unknown> = {}) {
   

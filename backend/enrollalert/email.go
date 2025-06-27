@@ -2,6 +2,7 @@ package enrollalert
 
 import (
 	"context"
+	"encoding/json"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/sesv2"
@@ -26,7 +27,7 @@ func NewEmailClient(ctx context.Context, from string, alertTemplate string) (*Em
 }
 
 // sends alert email to user using SES client
-func (c *EmailClient) Send(to, data map[string]interface{}) error {
+func (c *EmailClient) SendSeatAlert(to string, data map[string]interface{}) error {
 	
 	payload, _ := json.Marshal(data)
 

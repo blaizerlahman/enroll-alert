@@ -67,12 +67,12 @@ func NotifyMatchingAlerts(ctx context.Context, pool *pgxpool.Pool, mail *EmailCl
 		}
 
 		data := map[string]interface{}{
-			"course_name": a.courseName,
-			"section_num": a.sectionNum,
-			"open_seats":  a.openSeats,
-			"course_id":   a.courseID,
+			"course_name": alert.courseName,
+			"section_num": alert.sectionNum,
+			"open_seats":  alert.openSeats,
+			"course_id":   alert.courseID,
 		}
-		if err := mail.SendSeatAlert(a.email, data); err != nil {
+		if err := mail.SendSeatAlert(alert.email, data); err != nil {
 			return err
 		}
 

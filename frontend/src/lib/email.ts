@@ -7,7 +7,7 @@ const WELCOME_TEMPLATE = process.env.WELCOME_TEMPLATE;
 async function sendTemplate(to: string, templateName: string, data: Record<string, unknown> = {}) {
   
   try { 
-    const out = await client.send(
+    await client.send(
       new SendEmailCommand({
         FromEmailAddress: FROM,
         Destination: { ToAddresses: [to] },

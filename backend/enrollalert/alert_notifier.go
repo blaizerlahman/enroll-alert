@@ -2,8 +2,9 @@ package enrollalert
 
 import (
 	"context"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"fmt"
 	"strconv"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type alertRow struct {
@@ -22,6 +23,7 @@ type alertRow struct {
 // Returns error if issue arrises during querying or email sending.
 func NotifyMatchingAlerts(ctx context.Context, pool *pgxpool.Pool, mail *EmailClient, term int) error {
 
+	// queries any alerts that have been set off by new course seat data
 	rows, err := pool.Query(ctx, `
 		SELECT uc.user_id,
 		       u.email,
@@ -49,32 +51,51 @@ func NotifyMatchingAlerts(ctx context.Context, pool *pgxpool.Pool, mail *EmailCl
 	defer rows.Close()
 
 	for rows.Next() {
-		var a alertRow
+		var alert alertRow
 		if err := rows.Scan(
-			&a.userID,
-			&a.email,
-			&a.courseID,
-			&a.courseName,
-			&a.sectionNum,
-			&a.alertType,
-			&a.seatThreshold,
-			&a.openSeats,
+			&alert.userID,
+			&alert.email,
+			&alert.courseID,
+			&alert.courseName,
+			&alert.sectionNum,
+			&alert.alertType,
+			&alert.seatThreshold,
+			&alert.openSeats,
 		); err != nil {
 			return err
 		}
-		if a.email == "" {
+		if alert.email == "" {
 			continue
 		}
 
 		// composing email
-		sub := "Seat alert"
-		html := "<p>" + a.courseName + " section " + a.sectionNum +
-			" now has " + strconv.Itoa(a.openSeats) + " open seat(s).</p>"
-		text := a.courseName + " section " + a.sectionNum +
-			" now has " + strconv.Itoa(a.openSeats) + " open seat(s)."
+		sub := "Course Alert"
+		html := fmt.Sprintf(`
+			<p><strong>Enroll Alert!</strong></p>
+
+			<p>%s section %s now has %d open seat(s).</p>
+
+			<p>You will no longer receive alerts for %s section %s.
+			If you would like to set up a new alert, please visit
+			<a href="https://enrollalert.com">enrollalert.com</a>.</p>
+
+			<p>Happy enrolling!</p>`,
+					alert.courseName, alert.sectionNum, alert.openSeats,
+					alert.courseName, alert.sectionNum,
+		)
+
+		text := fmt.Sprintf(
+			"Enroll Alert!\n\n"+
+				"%s section %s now has %d open seat(s).\n\n"+
+				"You will no longer receive alerts for %s section %s.\n"+
+				"To create a new alert, visit https://enrollalert.com.\n\n"+
+				"Happy enrolling!",
+			alert.courseName, alert.sectionNum, alert.openSeats,
+			alert.courseName, alert.sectionNum,
+		)
 
 			// send email
-		if err := mail.Send(a.email, sub, html, text); err != nil {
+		if err := mail.Send(alert.email, sub, html, text); err != nil {
 			return err
 		}
 
@@ -86,7 +107,7 @@ func NotifyMatchingAlerts(ctx context.Context, pool *pgxpool.Pool, mail *EmailCl
 			  AND section_num   = $3
 			  AND alert_type    = $4
 			  AND (seat_threshold IS NOT DISTINCT FROM $5)
-		`, a.userID, a.courseID, a.sectionNum, a.alertType, a.seatThreshold); err != nil {
+		`, alert.userID, alert.courseID, alert.sectionNum, alert.alertType, alert.seatThreshold); err != nil {
 			return err
 		}
 	}

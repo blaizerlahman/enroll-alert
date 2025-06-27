@@ -13,6 +13,7 @@ type EmailClient struct {
 	from string
 }
 
+// cretes SES email client
 func NewEmailClient(ctx context.Context, from string) (*EmailClient, error) {
 
 	cfg, err := config.LoadDefaultConfig(ctx)
@@ -23,6 +24,7 @@ func NewEmailClient(ctx context.Context, from string) (*EmailClient, error) {
 	return &EmailClient{svc: sesv2.NewFromConfig(cfg), from: from}, nil
 }
 
+// sends alert email to user using SES client
 func (c *EmailClient) Send(to, subject, htmlBody, textBody string) error {
 
 	_, err := c.svc.SendEmail(context.TODO(), &sesv2.SendEmailInput{

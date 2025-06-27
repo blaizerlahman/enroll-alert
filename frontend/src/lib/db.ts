@@ -4,6 +4,7 @@ const pool = new Pool({
   connectionString: process.env.POSTGRES_URL,
 })
 
+// get all subsections (lectures, discussions) for the given course ID
 export async function getCourseSubsections(courseId: string) {
   const sql = `
     WITH lec AS (
@@ -46,6 +47,7 @@ export async function getCourseSubsections(courseId: string) {
   return rows
 }
 
+// get all courses that match the current filter (search, breadth, and subject)
 export async function getFilteredCourses({
   search = '',
   breadths = [],
@@ -85,9 +87,8 @@ export async function getFilteredCourses({
     ) DESC`
   }
 
-
   if (subject) {
-    values.push(`${subject} %`) // "COMP SCI %" to match COMP SCI 300
+    values.push(`${subject} %`) 
     whereClauses.push(`course_name ILIKE $${values.length}`)
   }
 
@@ -131,7 +132,6 @@ export async function getFilteredCourses({
     ${orderByClause || 'ORDER BY course_name'}
   `
 
-
   const paginatedQuery = `
     WITH filtered AS (
       ${baseQuery}
@@ -141,13 +141,13 @@ export async function getFilteredCourses({
     LIMIT $${values.length + 2}
   `
 
-
   values.push(offset, perPage)
 
   const result = await pool.query(paginatedQuery, values)
   return result.rows
 }
 
+// get existing subject
 export async function getSubjects() {
   const result = await pool.query(`
     SELECT DISTINCT
@@ -171,6 +171,7 @@ export async function getDiscussionSections(courseId: string) {
   return result.rows
 }
 
+// get existing breadths
 export async function getBreadths() {
   const result = await pool.query(`
     SELECT DISTINCT breadth_description

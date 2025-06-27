@@ -44,8 +44,8 @@ export default function AboutPage() {
         <h3 className="text-3xl font-bold text-red-700">Support</h3>
         <p>
           If you feel like this site has helped you and you would like to contribute to
-          it continuing to help others, your donation would be greatly appreciated. Any 
-          money the site receives will go towards future hosting costs to keep it running.
+          continue helping others, your donation would be greatly appreciated. Any 
+          money the site receives will go directly towards future hosting costs to keep it running.
         </p>
         <Button className="bg-red-600 text-white hover:bg-red-700">
           Donate

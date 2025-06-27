@@ -65,10 +65,21 @@ func main() {
 		log.Fatalf("Error with course section info update: %v", err)
 	} 
 
+	// create email clients 
+	mail, err := enrollalert.NewEmailClient(context.Background(), os.Getenv("EMAIL_FROM"))
+	if err != nil {
+		log.Fatalf("Error with email client creation: %v", err)
+	}
+
+	// send alert emails for sections that now match alerts
+	if err := enrollalert.NotifyMatchingAlerts(context.Background(), pool, mail, enrollalert.TermNum); err != nil {
+		log.Printf("Error with alert email sending: %v", err)
+	}
+
 	log.Printf("Course section info update successful.")
 	
 	log.Printf("Course updating done in %s", time.Since(timeStart))
 
-	fmt.Printf("Course scrape and info update successful.")
+	log.Printf("Course scrape and info update successful.")
 
 }

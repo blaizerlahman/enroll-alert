@@ -20,71 +20,95 @@ var (
 	parseOnce     sync.Once
 )
 
-type config struct {
+type Config struct {
 	init      bool
 	count     int
 	term      int
 	batchSize int
-	pgURL     string
+	postgresURL     string
 }
 
-func envOrFlagBool(env string, def bool) bool {
-	if v, ok := os.LookupEnv(env); ok {
-		b, err := strconv.ParseBool(v)
-		if err == nil {
-			return b
-		}
+// envBool Parse boolean flag for given input.
+// Return input boolean or default if no given input.
+func envBool(search string, defaultFlag bool) bool {
+	if flag, ok := os.LookupEnv(search); ok {
+		boolFlag, _ := strconv.ParseBool(flag)
+		return boolFlag
 	}
-	return def
+	return defaultFlag
 }
 
-func envOrFlagInt(env string, def int) int {
-	if v, ok := os.LookupEnv(env); ok {
-		i, err := strconv.Atoi(v)
-		if err == nil {
-			return i
-		}
+// envInt Parse integer flag for given input.
+// Return input integer or default if no given input
+func envInt(search string, defaultFlag int) int {
+	if flag, ok := os.LookupEnv(search); ok {
+		intFlag, _ := strconv.Atoi(flag)
+		return intFlag
 	}
-	return def
+	return defaultFlag
 }
 
-func loadConfig() config {
+// loadConfig Parse input flags and load DB URL.
+// Return config object containing flags and DB URL.
+func loadConfig() Config {
 	parseOnce.Do(flag.Parse)
-
-	return config{
-		init:      envOrFlagBool("INIT", *initFlag),
-		count:     envOrFlagInt("COUNT", *countFlag),
-		term:      envOrFlagInt("TERM", *termFlag),
-		batchSize: envOrFlagInt("BATCHSIZE", *batchSizeFlag),
-		pgURL:     os.Getenv("POSTGRES_URL"),
+	return Config{
+		init:      envBool("INIT", *initFlag),
+		count:     envInt("COUNT", *countFlag),
+		term:      envInt("TERM", *termFlag),
+		batchSize: envInt("BATCHSIZE", *batchSizeFlag),
+		postgresURL:     os.Getenv("POSTGRES_URL"),
 	}
 }
 
-func run(ctx context.Context, cfg config) error {
-	enrollalert.TermNum = cfg.term
-	enrollalert.Term = strconv.Itoa(cfg.term)
+// run Runs all scraping functions including retrieving course IDs, scraping course data from
+// UW-Madison Course Search & Enroll API, updating DB with new course info, and emailing users
+// if new course info satisfies their conditions for an alert.
+// Return error if error encountered during scraping
+func run(ctx context.Context, c Config) error {
+	enrollalert.TermNum = c.term
+	enrollalert.Term = strconv.Itoa(c.term)
 
-	if cfg.init {
-		return enrollalert.InitialDriver(cfg.count)
+	// run initial DB loading if specified
+	if c.init {
+		return enrollalert.InitialDriver(c.count)
 	}
 
-	pool, err := pgxpool.New(ctx, cfg.pgURL)
+	// establish DB connection
+	pool, err := pgxpool.New(ctx, c.postgresURL)
 	if err != nil {
 		return err
 	}
 	defer pool.Close()
 
+	// grab course IDs from DB
 	ids, err := enrollalert.GetAllCourseIDs(pool)
 	if err != nil {
 		return err
 	}
-	return enrollalert.CourseInfoUpdateDriver(pool, ids, cfg.batchSize)
+
+	// scrape API for course section info and update DB
+	if err := enrollalert.CourseInfoUpdateDriver(pool, ids, c.batchSize); err != nil {
+		return err
+	}
+
+	// create SES email client
+	mail, err := enrollalert.NewEmailClient(ctx, os.Getenv("EMAIL_FROM"), os.Getenv("ALERT_TEMPLATE"))
+	if err != nil {
+		return err
+	}
+
+	// send alert emails to users
+	return enrollalert.NotifyMatchingAlerts(ctx, pool, mail, enrollalert.TermNum)
 }
 
+// handler Handler for scraping driver.
+// Return error if error with scraping.
 func handler(ctx context.Context) error {
 	return run(ctx, loadConfig())
 }
 
+// main Main function for AWS Lambda
 func main() {
 	if os.Getenv("AWS_LAMBDA_FUNCTION_NAME") != "" {
 		lambda.Start(handler)

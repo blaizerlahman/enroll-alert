@@ -4,7 +4,6 @@ import { sendWelcome } from '@/lib/email'
 import { Pool } from 'pg'
 
 const pool = new Pool({ connectionString: process.env.POSTGRES_URL })
-const EMAIL_FROM = process.env.EMAIL_FROM!
 
 export async function POST(req: Request) {
 

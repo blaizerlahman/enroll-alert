@@ -1,5 +1,4 @@
 import { SESv2Client, SendEmailCommand } from '@aws-sdk/client-sesv2'
-import util from 'util';
 
 const client = new SESv2Client({ region: process.env.AWS_REGION })
 const FROM = process.env.EMAIL_FROM!

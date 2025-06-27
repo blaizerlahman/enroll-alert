@@ -1,4 +1,3 @@
-// components/AuthModal.tsx
 "use client"
 
 import { useState, useEffect, useRef } from "react"
@@ -15,6 +14,14 @@ import { motion, AnimatePresence } from "framer-motion"
 import { toast } from "sonner"
 
 type Mode = "signin" | "signup" | "reset"
+
+const authMessages: Record<string, string> = {
+  'auth/email-already-in-use': 'That e-mail is already registered.',
+  'auth/invalid-email':        'Please enter a valid e-mail address.',
+  'auth/weak-password':        'Password must be at least 6 characters.',
+  'auth/invalid-credential':   'Incorrect e-mail or password.',
+  'auth/wrong-password':       'Incorrect e-mail or password.',
+}
 
 export default function AuthModal({ onClose }: { onClose: () => void }) {
 
@@ -46,7 +53,7 @@ export default function AuthModal({ onClose }: { onClose: () => void }) {
       } else if (mode === "signup") {
 
         const credentials = await createUserWithEmailAndPassword(auth, email, password)
-        const token = await.cred.user.getIdToken()
+        const token = await credentials.user.getIdToken()
       
         // call endpoint to send welcome email
         fetch("/api/welcome", {
@@ -65,13 +72,17 @@ export default function AuthModal({ onClose }: { onClose: () => void }) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       console.error(err)
-      if (mode === "reset") {
-        setError("Failed to send reset email.")
-      } else if (err.code === "auth/invalid-credential" || err.code === "auth/wrong-password") {
-        setError("Incorrect e-mail or password.")
-      } else {
-        setError("Authentication error. Please try again.")
+
+      let errorMsg = 'Authentication error. Please try again.'
+
+      // give error message for specific error 
+      if (err?.code && authMessages[err.code]) {
+        errorMsg = authMessages[err.code]
+      } else if (mode === 'reset') {
+        errorMsg = 'Failed to send reset email.'
       }
+
+      setError(errorMsg)
     }
   }
 

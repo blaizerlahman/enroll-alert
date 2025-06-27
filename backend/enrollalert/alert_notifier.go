@@ -2,8 +2,6 @@ package enrollalert
 
 import (
 	"context"
-	"fmt"
-	"strconv"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -68,34 +66,13 @@ func NotifyMatchingAlerts(ctx context.Context, pool *pgxpool.Pool, mail *EmailCl
 			continue
 		}
 
-		// composing email
-		sub := "Course Alert"
-		html := fmt.Sprintf(`
-			<p><strong>Enroll Alert!</strong></p>
-
-			<p>%s section %s now has %d open seat(s).</p>
-
-			<p>You will no longer receive alerts for %s section %s.
-			If you would like to set up a new alert, please visit
-			<a href="https://enrollalert.com">enrollalert.com</a>.</p>
-
-			<p>Happy enrolling!</p>`,
-					alert.courseName, alert.sectionNum, alert.openSeats,
-					alert.courseName, alert.sectionNum,
-		)
-
-		text := fmt.Sprintf(
-			"Enroll Alert!\n\n"+
-				"%s section %s now has %d open seat(s).\n\n"+
-				"You will no longer receive alerts for %s section %s.\n"+
-				"To create a new alert, visit https://enrollalert.com.\n\n"+
-				"Happy enrolling!",
-			alert.courseName, alert.sectionNum, alert.openSeats,
-			alert.courseName, alert.sectionNum,
-		)
-
-			// send email
-		if err := mail.Send(alert.email, sub, html, text); err != nil {
+		data := map[string]interface{}{
+			"course_name": a.courseName,
+			"section_num": a.sectionNum,
+			"open_seats":  a.openSeats,
+			"course_id":   a.courseID,
+		}
+		if err := mail.SendSeatAlert(a.email, data); err != nil {
 			return err
 		}
 

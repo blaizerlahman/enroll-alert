@@ -31,8 +31,8 @@ type Config struct {
 // envBool Parse boolean flag for given input.
 // Return input boolean or default if no given input.
 func envBool(search string, defaultFlag bool) bool {
-	if var, ok := os.LookupEnv(search); ok {
-		boolFlag, _ := strconv.ParseBool(var)
+	if flag, ok := os.LookupEnv(search); ok {
+		boolFlag, _ := strconv.ParseBool(flag)
 		return boolFlag
 	}
 	return defaultFlag
@@ -41,8 +41,8 @@ func envBool(search string, defaultFlag bool) bool {
 // envInt Parse integer flag for given input.
 // Return input integer or default if no given input
 func envInt(search string, defaultFlag int) int {
-	if var, ok := os.LookupEnv(search); ok {
-		intFlag, _ := strconv.Atoi(var)
+	if flag, ok := os.LookupEnv(search); ok {
+		intFlag, _ := strconv.Atoi(flag)
 		return intFlag
 	}
 	return defaultFlag
@@ -93,7 +93,7 @@ func run(ctx context.Context, c Config) error {
 	}
 
 	// create SES email client
-	mail, err := enrollalert.NewEmailClient(ctx, os.Getenv("EMAIL_FROM"))
+	mail, err := enrollalert.NewEmailClient(ctx, os.Getenv("EMAIL_FROM"), os.Getenv("ALERT_TEMPLATE"))
 	if err != nil {
 		return err
 	}

@@ -168,7 +168,6 @@ func CourseInfoUpdateDriver(pool *pgxpool.Pool, courseNames []string, batchSize 
 	}
 
 	log.Println("Uploaded seat info to DB")
-	
 
 	return nil
 }

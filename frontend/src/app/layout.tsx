@@ -12,7 +12,12 @@ const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"]
 
 export const metadata: Metadata = {
   title: "EnrollAlert",
-  description: "Track and become notified of enrollment status of UW-Madison courses in real time.",
+  description: 'Never miss an open seat again.',
+  icons: {
+    icon: '/favicon.ico',
+    shortcut: '/favicon.ico',
+    apple: '/apple-touch-icon.png',
+  }
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

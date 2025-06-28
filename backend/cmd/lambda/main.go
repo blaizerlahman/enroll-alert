@@ -65,17 +65,17 @@ func loadConfig() Config {
 // UW-Madison Course Search & Enroll API, updating DB with new course info, and emailing users
 // if new course info satisfies their conditions for an alert.
 // Return error if error encountered during scraping
-func run(ctx context.Context, c Config) error {
-	enrollalert.TermNum = c.term
-	enrollalert.Term = strconv.Itoa(c.term)
+func run(ctx context.Context, config Config) error {
+	enrollalert.TermNum = config.term
+	enrollalert.Term = strconv.Itoa(config.term)
 
 	// run initial DB loading if specified
-	if c.init {
-		return enrollalert.InitialDriver(c.count)
+	if config.init {
+		return enrollalert.InitialDriver(config.count)
 	}
 
 	// establish DB connection
-	pool, err := pgxpool.New(ctx, c.postgresURL)
+	pool, err := pgxpool.New(ctx, config.postgresURL)
 	if err != nil {
 		return err
 	}
@@ -88,7 +88,7 @@ func run(ctx context.Context, c Config) error {
 	}
 
 	// scrape API for course section info and update DB
-	if err := enrollalert.CourseInfoUpdateDriver(pool, ids, c.batchSize); err != nil {
+	if err := enrollalert.CourseInfoUpdateDriver(pool, ids, config.batchSize); err != nil {
 		return err
 	}
 

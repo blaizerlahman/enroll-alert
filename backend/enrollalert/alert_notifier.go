@@ -1,6 +1,8 @@
 package enrollalert
 
 import (
+	"log"
+
 	"context"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -47,6 +49,11 @@ func NotifyMatchingAlerts(ctx context.Context, pool *pgxpool.Pool, mail *EmailCl
 		return err
 	}
 	defer rows.Close()
+
+	var count int
+	_ = pool.QueryRow(ctx, `SELECT COUNT(*) FROM course_sections WHERE term=$1`, term).
+						Scan(&count)
+	log.Printf("DEBUG  rows in course_sections for term=%d → %d", term, count)
 
 	for rows.Next() {
 		var alert alertRow

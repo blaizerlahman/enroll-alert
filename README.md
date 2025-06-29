@@ -31,7 +31,13 @@ A Dockerfile will be provided in future commits, but for now this serves as a so
 To run the course scraper locally, `git clone` and spin up a PostgreSQL database and save the connection string as an environment variable `POSTGRES_URL`. Run `go build -o scraper backend/cmd/main.go` (not `backend/cmd/lambda/main.go`), and once built run `./scraper -init`. For subsequent runs, just do `./scraper`. Currently, the scraper is set to scrape **Fall 2025** courses by default, but term can be specified by running `./scraper -term <term-number>`, with the term number you want being found via the Course Search & Enroll API. If you've configured your `courses` and `course_sections` tables correctly, both should be populated with current course info. Happy scraping!
 
 ## Contribution
-Contributions are **welcome and encouraged**. Feel free to fork and open PR's as you please, any improvements will be greatly appreciated. If you want to make suggestions, feel free to open an issue or fill out the [feedback form on the site](https://form.jotform.com/251638644266161). Future updates and improvements are always in the works.
+Contributions are **welcome and encouraged**. Feel free to fork and open PR's as you please, any improvements will be greatly appreciated. If you want to make suggestions, feel free to open an issue or fill out the [feedback form on the site](https://form.jotform.com/251638644266161). Future updates and improvements are always in the works. Contributions made that support the Roadmap below are incredibly helpful!
+
+## Roadmap
+* Better UI support on mobile
+* Persistent data storage and tracking to show past enrollment trends
+* SMS notification options
+* Higher user tiers for incrased scrape frequency
 
 ## Developers
 Developed by Blaize Lahman
@@ -40,6 +46,8 @@ Developed by Blaize Lahman
 Course data gathered from [UW-Madison Course Search & Enroll](https://public.enroll.wisc.edu/search)
 
 Project inspired by [Madgrades](https://github.com/Madgrades)
+
+Project unaffiliated with the University of Wisconsin-Madison
 
 
 

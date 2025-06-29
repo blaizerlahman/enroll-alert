@@ -1,0 +1,8 @@
+Seat available!
+
+{{course_name}} section {{section_num}} now has {{open_seats}} open seat(s).
+
+Enroll now: https://registrar.wisc.edu/course-search-enroll/
+
+(This alert has been removed. You can create a new one at any time.)
+

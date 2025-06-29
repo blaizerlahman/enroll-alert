@@ -37,7 +37,6 @@ func batchCourseIDs(courseIDs []*CourseCodes, batchSize int) [][]*CourseCodes {
 }
 
 // getCourseCodesFromDB Queries course and subject codes using course name and creates a list of
-// CourseCodes containing subject/course ID's and course name
 // returns a list of pointers to CourseCodes containing course information
 func getCourseCodesFromDB(pool *pgxpool.Pool, courseIDs []string) ([]*CourseCodes, error) {
 
@@ -169,7 +168,6 @@ func CourseInfoUpdateDriver(pool *pgxpool.Pool, courseNames []string, batchSize 
 	}
 
 	log.Println("Uploaded seat info to DB")
-	
 
 	return nil
 }

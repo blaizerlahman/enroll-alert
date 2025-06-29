@@ -38,6 +38,7 @@ Contributions are **welcome and encouraged**. Feel free to fork and open PR's as
 * Persistent data storage and tracking to show past enrollment trends
 * SMS notification options
 * Higher user tiers for incrased scrape frequency
+* FAQ section once user feedback is gathered
 
 ## Developers
 Developed by Blaize Lahman

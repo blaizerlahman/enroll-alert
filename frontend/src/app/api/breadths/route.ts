@@ -1,4 +1,3 @@
-// app/api/breadths/route.ts
 import { getBreadths } from '@/lib/db'
 import { NextResponse } from 'next/server'
 

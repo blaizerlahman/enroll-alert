@@ -2,6 +2,7 @@ import { getFilteredCourses } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(req: NextRequest) {
+
   const { searchParams } = new URL(req.url)
   const search = searchParams.get('search') || ''
   const subject = searchParams.get('subject') || ''

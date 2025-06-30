@@ -7,6 +7,12 @@ const limiter = new RateLimiterMemory({ points: 40, duration: 60 })
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
 
+  // don't rate limit webcrawlers
+  const ua = req.headers.get('user-agent') ?? '';
+  if (/Googlebot|Bingbot|DuckDuckBot/i.test(ua)) {
+    return NextResponse.next();
+  }
+
   // keep track of any calls to notifications DELETE endpoint, or sections/discussions APIs
   if (
     (pathname === '/api/notifications' && req.method === 'DELETE') ||

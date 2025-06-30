@@ -1,9 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getAdminAuth } from '@/lib/firebase-admin'
 import { sendWelcome } from '@/lib/email'
-import { Pool } from 'pg'
-
-const pool = new Pool({ connectionString: process.env.POSTGRES_URL })
+import { db } from '@/lib/db'
 
 export async function POST(req: Request) {
 
@@ -20,7 +18,7 @@ export async function POST(req: Request) {
     // upsert user and check if welcome email has been sent
     const {
       rows: [{ welcome_sent }],
-    } = await pool.query(
+    } = await db.query(
       `INSERT INTO users (firebase_uid, email)
        VALUES ($1,$2)
        ON CONFLICT (email) DO UPDATE SET email=EXCLUDED.email
@@ -31,7 +29,7 @@ export async function POST(req: Request) {
     // send a welcome email if it hasn't been sent
     if (!welcome_sent && email) {
       await sendWelcome(email)
-      await pool.query(
+      await db.query(
         `UPDATE users SET welcome_sent = true WHERE firebase_uid=$1`,
         [uid],
       )

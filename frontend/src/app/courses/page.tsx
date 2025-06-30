@@ -1,4 +1,3 @@
-/* app/courses/page.tsx */
 import CoursesClient from './page.client'
 
 export const revalidate = 3600                 

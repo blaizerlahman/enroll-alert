@@ -1,6 +1,6 @@
 import CoursesClient from './page.client'
 
-export const revalidate = 3600                 
+export const dynamic = 'force-dynamic'
 
 function getBaseUrl() {
   const vercel = process.env.VERCEL_URL

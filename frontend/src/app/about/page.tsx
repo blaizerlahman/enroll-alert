@@ -47,8 +47,14 @@ export default function AboutPage() {
           continue helping others, your donation would be greatly appreciated. Any 
           money the site receives will go directly towards future hosting costs to keep it running.
         </p>
-        <Button className="bg-red-600 text-white hover:bg-red-700">
-          Donate
+        <Button asChild className="bg-red-600 text-white hover:bg-red-700">
+          <Link
+            href="https://buy.stripe.com/28EeVe9Q8cUWbP89dI4ko00"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Donate
+          </Link>
         </Button>
       </section>
 

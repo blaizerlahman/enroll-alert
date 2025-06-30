@@ -1,4 +1,5 @@
 import CoursesClient from './page.client'
+import { cookies } from 'next/headers'
 
 export const dynamic = 'force-dynamic'
 
@@ -9,31 +10,17 @@ function getBaseUrl() {
   return 'http://localhost:3000'
 }
 
-async function safeJson(label: string, res: Response) {
-  if (!res.ok) {
-    console.error(`${label} → ${res.status}`)
-    throw new Error(`${label} failed`)
-  }
-  return res.json().catch(e => {
-    console.error(`${label} parse error`, e)
-    throw e
-  })
-}
-
 export default async function Page() {
-  const base     = getBaseUrl()
+  const base = getBaseUrl()
   const perPage  = 20
-
-  const [coursesRes, subjectsRes, breadthsRes] = await Promise.all([
-    fetch(`${base}/api/courses?page=1&perPage=${perPage}`),
-    fetch(`${base}/api/subjects`),
-    fetch(`${base}/api/breadths`),
-  ])
+  const cookieHeader = cookies().toString()
 
   const [courses, subjects, breadths] = await Promise.all([
-    safeJson('courses', coursesRes),
-    safeJson('subjects', subjectsRes),
-    safeJson('breadths', breadthsRes),
+    fetch(`${base}/api/courses?page=1&perPage=${perPage}`, {
+      headers: { cookie: cookieHeader },
+    }).then(r => r.json()),
+    fetch(`${base}/api/subjects`, { headers: { cookie: cookieHeader } }).then(r => r.json()),
+    fetch(`${base}/api/breadths`, { headers: { cookie: cookieHeader } }).then(r => r.json()),
   ])
 
   return (

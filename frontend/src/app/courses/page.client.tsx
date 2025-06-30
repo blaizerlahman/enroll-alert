@@ -107,7 +107,6 @@ export default function CoursesClient({
     return () => unsub()
   }, [])
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
 
     const filtersChanged =

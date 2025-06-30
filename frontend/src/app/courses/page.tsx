@@ -1,26 +1,29 @@
 import CoursesClient from './page.client'
-import { cookies } from 'next/headers'
+import { headers } from 'next/headers'
 
 export const dynamic = 'force-dynamic'
 
-function getBaseUrl() {
-  const vercel = process.env.VERCEL_URL
-  if (vercel) return `https://${vercel}`
+const INTERNAL = process.env.INTERNAL_API_KEY!
 
-  return 'http://localhost:3000'
+async function getBaseUrl() {
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`
+
+  const h = await headers()
+  const host = h.get('host') ?? 'localhost:3000'
+  const proto = h.get('x-forwarded-proto') ?? 'http'
+  return `${proto}://${host}`
 }
 
 export default async function Page() {
-  const base = getBaseUrl()
+  const base = await getBaseUrl()
   const perPage  = 20
-  const cookieHeader = cookies().toString()
 
   const [courses, subjects, breadths] = await Promise.all([
     fetch(`${base}/api/courses?page=1&perPage=${perPage}`, {
-      headers: { cookie: cookieHeader },
+      headers: { 'X-Internal-Request': INTERNAL },
     }).then(r => r.json()),
-    fetch(`${base}/api/subjects`, { headers: { cookie: cookieHeader } }).then(r => r.json()),
-    fetch(`${base}/api/breadths`, { headers: { cookie: cookieHeader } }).then(r => r.json()),
+    fetch(`${base}/api/subjects`, { headers: { 'X-Internal-Request': INTERNAL }, }).then(r => r.json()),
+    fetch(`${base}/api/breadths`, { headers: { 'X-Internal-Request': INTERNAL } }).then(r => r.json()),
   ])
 
   return (
@@ -32,4 +35,3 @@ export default async function Page() {
     />
   )
 }
-

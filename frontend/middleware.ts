@@ -1,9 +1,9 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { RateLimiterMemory } from 'rate-limiter-flexible'
 
-const limiter = new RateLimiterMemory({ points: 10, duration: 60 })
+const limiter = new RateLimiterMemory({ points: 40, duration: 60 })
 
-// prevent any API call spam with more than 20 calls within a minute
+// prevent any API call spam with more than 40 calls within a minute
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
 

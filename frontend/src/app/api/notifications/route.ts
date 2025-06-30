@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getAdminAuth } from '@/lib/firebase-admin'
-import { Pool } from 'pg'
 
-const pool = new Pool({ connectionString: process.env.POSTGRES_URL })
+import { db } from '@/lib/db'
 
 export async function POST(req: Request) {
   try {
@@ -26,7 +25,7 @@ export async function POST(req: Request) {
     // upsert user and get their id
     const {
       rows: [{ id: userId }],
-    } = await pool.query(
+    } = await db.query(
       `
       INSERT INTO users (firebase_uid, email)
       VALUES ($1, $2)
@@ -40,7 +39,7 @@ export async function POST(req: Request) {
     // get number of already existing alerts for the user
     const {
       rows: [{ count: existingAlerts }],
-    } = await pool.query<{ count: number }>(
+    } = await db.query<{ count: number }>(
       `SELECT COUNT(*)::int AS count
        FROM user_courses
        WHERE user_id = $1`,
@@ -58,7 +57,7 @@ export async function POST(req: Request) {
     // check each selected section and return an error if any already exist
     // and return error if so
     for (const sec of sectionNum) {
-      const { rows: [{ exists }] } = await pool.query<{ exists: boolean }>(
+      const { rows: [{ exists }] } = await db.query<{ exists: boolean }>(
         `
         SELECT EXISTS(
           SELECT 1
@@ -80,7 +79,7 @@ export async function POST(req: Request) {
       }
 
       // insert course alert into DB
-      await pool.query(
+      await db.query(
         `
         INSERT INTO user_courses
                (user_id, course_id, section_num, alert_type, seat_threshold)
@@ -110,12 +109,12 @@ export async function DELETE(req: Request) {
 
     const {
       rows: [{ id: userId }],
-    } = await pool.query(
+    } = await db.query(
       `SELECT id FROM users WHERE firebase_uid = $1`,
       [firebaseUid]
     )
 
-    await pool.query(
+    await db.query(
       `
       DELETE FROM user_courses
       WHERE user_id     = $1

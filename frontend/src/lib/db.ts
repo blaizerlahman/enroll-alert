@@ -1,8 +1,17 @@
 import { Pool } from 'pg'
 
-const pool = new Pool({
-  connectionString: process.env.POSTGRES_URL,
-})
+type GlobalPool = typeof global & {__dbPool?: Pool }
+const g = global as GlobalPool
+
+export const db = 
+  g.__dbPool ?? 
+  (g.__dbPool = new Pool({
+    connectionString: process.env.POSTGRES_URL,
+    max: 1,
+    idleTimeoutMillis: 5_000,
+    connectionTimeoutMillis: 3_000,
+    maxUses: 5_000,
+  }))
 
 // get all subsections (lectures, discussions) for the given course ID
 export async function getCourseSubsections(courseId: string) {
@@ -43,7 +52,7 @@ export async function getCourseSubsections(courseId: string) {
                         AND     300 +  l.lecture_num_int       * 20
     ORDER BY l.lecture_num, d.section_num;
   `
-  const { rows } = await pool.query(sql, [courseId])
+  const { rows } = await db.query(sql, [courseId])
   return rows
 }
 
@@ -143,13 +152,13 @@ export async function getFilteredCourses({
 
   values.push(offset, perPage)
 
-  const result = await pool.query(paginatedQuery, values)
+  const result = await db.query(paginatedQuery, values)
   return result.rows
 }
 
 // get existing subject
 export async function getSubjects() {
-  const result = await pool.query(`
+  const result = await db.query(`
     SELECT DISTINCT
       TRIM(REGEXP_REPLACE(course_name, '\\s\\d+.*$', '')) AS subject
     FROM course_sections
@@ -162,7 +171,7 @@ export async function getSubjects() {
 
 // get subsections for a given course_id
 export async function getDiscussionSections(courseId: string) {
-  const result = await pool.query(`
+  const result = await db.query(`
     SELECT section_num, section_type, open_seats
     FROM course_sections
     WHERE section_type IN ('DIS', 'LAB', 'SEM') AND course_id = $1
@@ -173,7 +182,7 @@ export async function getDiscussionSections(courseId: string) {
 
 // get existing breadths
 export async function getBreadths() {
-  const result = await pool.query(`
+  const result = await db.query(`
     SELECT DISTINCT breadth_description
     FROM course_breadths
     WHERE breadth_description IS NOT NULL

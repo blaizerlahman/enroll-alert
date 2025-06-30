@@ -9,14 +9,31 @@ function getBaseUrl() {
   return 'http://localhost:3000'
 }
 
+async function safeJson(label: string, res: Response) {
+  if (!res.ok) {
+    console.error(`${label} → ${res.status}`)
+    throw new Error(`${label} failed`)
+  }
+  return res.json().catch(e => {
+    console.error(`${label} parse error`, e)
+    throw e
+  })
+}
+
 export default async function Page() {
   const base     = getBaseUrl()
   const perPage  = 20
 
+  const [coursesRes, subjectsRes, breadthsRes] = await Promise.all([
+    fetch(`${base}/api/courses?page=1&perPage=${perPage}`),
+    fetch(`${base}/api/subjects`),
+    fetch(`${base}/api/breadths`),
+  ])
+
   const [courses, subjects, breadths] = await Promise.all([
-    fetch(`${base}/api/courses?page=1&perPage=${perPage}`).then(r => r.json()),
-    fetch(`${base}/api/subjects`).then(r => r.json()),
-    fetch(`${base}/api/breadths`).then(r => r.json()),
+    safeJson('courses', coursesRes),
+    safeJson('subjects', subjectsRes),
+    safeJson('breadths', breadthsRes),
   ])
 
   return (

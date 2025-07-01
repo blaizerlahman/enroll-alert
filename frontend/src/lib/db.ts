@@ -1,4 +1,5 @@
-import { Pool, type QueryResult } from 'pg'
+import { Pool, type QueryResult, type QueryResultRow } from 'pg'
+import type { Course } from '@/lib/types'
 import pLimit from 'p-limit'
 
 type GlobalPool = typeof global & {__dbPool?: Pool }
@@ -25,18 +26,17 @@ export class PoolBusyError extends Error {
 type SqlParams = ReadonlyArray<string | number | null | boolean>
 
 // query function that returns error and retries if max connections are reached
-export async function query<T = unknown>(
+export async function query<R extends QueryResultRow = QueryResultRow>(
   text: string,
   params: SqlParams = [],
   retries = 3,
-): Promise<QueryResult<T>> {
+): Promise<QueryResult<R>> {
   return limit(async () => {
     for (let attempt = 0; ; attempt++) {
       try {
-        return await db.query<T>(text, params)
+        return await db.query<R>(text, Array.from(params))
       } catch (err) {
-        const msg =
-          err instanceof Error ? err.message : String(err)
+        const msg = err instanceof Error ? err.message : String(err)
 
         const poolFull = /no more connections|too many connections|timeout exceeded/i.test(
           msg,
@@ -97,7 +97,7 @@ export async function getCourseSubsections(courseId: string) {
 }
 
 // get all courses that match the current filter (search, breadth, and subject)
-export async function getFilteredCourses({
+export async function getFilteredCourses<R extends QueryResultRow = Course>({
   search = '',
   breadths = [],
   subject = '',
@@ -109,7 +109,7 @@ export async function getFilteredCourses({
   subject?: string
   page?: number
   perPage?: number
-}) {
+}): Promise<R[]> {
   const offset = (page - 1) * perPage
 
   const values = []
@@ -192,7 +192,7 @@ export async function getFilteredCourses({
 
   values.push(offset, perPage)
 
-  const result = await query(paginatedQuery, values)
+  const result = await query<R>(paginatedQuery, values)
   return result.rows
 }
 

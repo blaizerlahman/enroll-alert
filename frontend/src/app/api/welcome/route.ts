@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { getAdminAuth } from '@/lib/firebase-admin'
 import { sendWelcome } from '@/lib/email'
-import { db } from '@/lib/db'
+import { query } from '@/lib/db'
+import type { WelcomeRow } from '@/lib/types'
 
 export async function POST(req: Request) {
 
@@ -16,20 +17,19 @@ export async function POST(req: Request) {
     const email = decoded.email ?? null
 
     // upsert user and check if welcome email has been sent
-    const {
-      rows: [{ welcome_sent }],
-    } = await db.query(
+    const welcomeResult = await query<WelcomeRow> (
       `INSERT INTO users (firebase_uid, email)
        VALUES ($1,$2)
        ON CONFLICT (email) DO UPDATE SET email=EXCLUDED.email
        RETURNING welcome_sent`,
       [uid, email],
     )
+    const welcome_sent = welcomeResult.rows[0].welcome_sent
 
     // send a welcome email if it hasn't been sent
     if (!welcome_sent && email) {
       await sendWelcome(email)
-      await db.query(
+      await query(
         `UPDATE users SET welcome_sent = true WHERE firebase_uid=$1`,
         [uid],
       )

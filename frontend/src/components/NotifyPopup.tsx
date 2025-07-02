@@ -97,8 +97,6 @@ export default function NotifyPopup({
 
     try {
       const token = await auth.currentUser.getIdToken()
-
-      // create request body that contains section alert info
       const body = {
         token,
         courseId,
@@ -112,7 +110,6 @@ export default function NotifyPopup({
         seatThreshold: mode === 'threshold' ? +threshold : null,
       }
 
-      // get response body from notifications API call
       const response = await fetch('/api/notifications', {
         method: 'POST',
         body: JSON.stringify(body),
@@ -121,7 +118,6 @@ export default function NotifyPopup({
 
       const data = await response.json()
 
-      // return success if alert successfully saved or error otherwise
       if (response.ok) {
         toast.success('Alert saved!')
         onOpenChange(false)
@@ -141,7 +137,7 @@ export default function NotifyPopup({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Notify me:</DialogTitle>
+          <DialogTitle className="text-center">Notify me:</DialogTitle>
         </DialogHeader>
 
         <RadioGroup
@@ -151,16 +147,16 @@ export default function NotifyPopup({
         >
           {subsections.length === 0 ? (
             openSeats === 0 ? (
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center justify-center gap-2">
                 <RadioGroupItem id="any-lecture" value="any" />
-                <label htmlFor="any-lecture">
+                <label htmlFor="any-lecture" className="text-center">
                   When any seats open in {sectionNum}
                 </label>
               </div>
             ) : (
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center justify-center gap-2">
                 <RadioGroupItem id="th-lecture" value="threshold" />
-                <label htmlFor="th-lecture" className="flex items-center gap-2">
+                <label htmlFor="th-lecture" className="flex flex-wrap items-center justify-center gap-2">
                   When&nbsp;≤
                   <Input
                     type="number"
@@ -178,16 +174,16 @@ export default function NotifyPopup({
           ) : (
             <>
               {hasClosed && (
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center justify-center gap-2">
                   <RadioGroupItem id="any" value="any" />
-                  <label htmlFor="any" className="flex items-center gap-2">
+                  <label htmlFor="any" className="flex flex-wrap items-center justify-center gap-2">
                     When any seats open in
                     <Popover>
                       <PopoverTrigger asChild>
                         <Button
                           variant="outline"
                           size="sm"
-                          className="w-40 truncate text-left"
+                          className="w-32 sm:w-40 truncate text-left"
                         >
                           {multiBtn}
                         </Button>
@@ -241,9 +237,9 @@ export default function NotifyPopup({
                 </div>
               )}
               {hasOpen && (
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center justify-center gap-2">
                   <RadioGroupItem id="th" value="threshold" />
-                  <label htmlFor="th" className="flex items-center gap-2">
+                  <label htmlFor="th" className="flex flex-wrap items-center justify-center gap-2">
                     When&nbsp;≤
                     <Input
                       type="number"
@@ -260,7 +256,7 @@ export default function NotifyPopup({
                         <Button
                           variant="outline"
                           size="sm"
-                          className="w-40 truncate text-left"
+                          className="w-32 sm:w-40 truncate text-left"
                         >
                           {singleBtn}
                         </Button>
@@ -289,7 +285,7 @@ export default function NotifyPopup({
 
         <Button 
           variant="outline"
-          className="w-full border-2 border-red-500 text-red-500 hover:bg-red-500 hover:text-white"
+          className="mx-auto block border-2 border-red-500 text-red-500 hover:bg-red-500 hover:text-white"
           onClick={submit}
         >
           Save alert

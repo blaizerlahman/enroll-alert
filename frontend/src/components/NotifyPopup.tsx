@@ -97,6 +97,8 @@ export default function NotifyPopup({
 
     try {
       const token = await auth.currentUser.getIdToken()
+
+      // create request body that contains section alert info
       const body  = {
         token,
         courseId,
@@ -110,14 +112,26 @@ export default function NotifyPopup({
         seatThreshold: mode === 'threshold' ? +threshold : null,
       }
 
-      const res  = await fetch('/api/notifications', {
+      // get resonse body from notifications API call
+      const response  = await fetch('/api/notifications', {
         method: 'POST',
         body:   JSON.stringify(body),
         headers:{ 'Content-Type': 'application/json' },
       })
-      const data = await res.json()
-      res.ok ? toast.success('Alert saved!') : toast.error(data.error || 'Failed')
-      if (res.ok) onOpenChange(false)
+
+      const data = await response.json()
+
+      // return success if alert successfully saved or error otherwise
+      if (response.ok) {
+        toast.success('Alert saved!')
+        onOpenChange(false)
+      } else if (response.status === 409) {
+        toast.error(data.error)
+      } else if (response.status === 410) {
+        toast.error(data.error)
+      } else {
+        throw new Error()
+      }
     } catch {
       toast.error('Could not save alert.')
     }

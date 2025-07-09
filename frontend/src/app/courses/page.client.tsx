@@ -179,6 +179,7 @@ export default function CoursesClient({
 
   return (
     <div>
+      <h1 className="sr-only">UW-Madison Course Seat Availability and Notifier</h1>
       {notifyTarget && (
         <NotifyPopup
           open={!!notifyTarget}

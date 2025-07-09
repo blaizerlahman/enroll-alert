@@ -101,6 +101,8 @@ export default function CoursesClient({
 
   const [open, setOpen] = useState(false)
   const [page, setPage] = useState(1)
+  
+  const [busy, setBusy] = useState(false)
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => setUser(u))
@@ -123,7 +125,15 @@ export default function CoursesClient({
     params.set('perPage', perPage.toString())
 
     fetch(`/api/courses?${params.toString()}`)
-      .then((r) => r.json())
+      .then(async r => {
+        if (r.status === 503) {
+          setBusy(true)
+          setTimeout(() => setPage(p => p), 2000)
+          return []
+        }
+        setBusy(false)
+        return r.json()
+      })
       .then((data) => {
         if (Array.isArray(data)) {
           setCourses(
@@ -186,6 +196,13 @@ export default function CoursesClient({
         isSignedIn={!!user}
         setShowAuth={setShowAuth}
       />
+
+      {busy && (
+        <p className="text-center text-blue-700 text-sm mb-2">
+          Sorry, we are experiencing heavy traffic. We will retry loading your page shortly.
+        </p>
+      )}
+
       {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
 
       <main className="pt-24 px-6 space-y-4">

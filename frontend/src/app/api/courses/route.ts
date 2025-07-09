@@ -1,5 +1,7 @@
-import { getFilteredCourses } from '@/lib/db'
+import { getFilteredCourses, PoolBusyError } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
+
+export const revalidate = 300
 
 export async function GET(req: NextRequest) {
 
@@ -20,8 +22,18 @@ export async function GET(req: NextRequest) {
       page,
       perPage,
     })
-    return NextResponse.json(courses)
+
+    return NextResponse.json(courses, {
+      headers: {
+        'Cache-Control':
+          page === 1
+            ? 'public, s-maxage=300, stale-while-revalidate=300'
+            : 'no-store',
+      },
+    })
   } catch (err) {
+    if (err instanceof PoolBusyError)
+      return NextResponse.json({ error: 'busy' }, { status: 503 })
     console.error('Failed to fetch filtered courses:', err)
     return NextResponse.json({ error: 'Database error' }, { status: 500 })
   }

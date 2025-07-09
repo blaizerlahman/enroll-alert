@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server'
 import { getAdminAuth } from '@/lib/firebase-admin'
-import { Pool } from 'pg'
+import { query } from '@/lib/db'
+import { IdRow } from '@/lib/types'
 
-const pool = new Pool({ connectionString: process.env.POSTGRES_URL })
 const TERM = parseInt(process.env.NEXT_PUBLIC_TERM ?? '1262', 10)
 
 export async function GET(req: Request) {
@@ -19,9 +19,7 @@ export async function GET(req: Request) {
     const uid = decoded.uid
     const email = decoded.email || null
 
-    const {
-      rows: [{ id: userId }],
-    } = await pool.query(
+    const userInsert = await query<IdRow>(
       `
       INSERT INTO users (firebase_uid, email)
       VALUES ($1, $2)
@@ -33,7 +31,9 @@ export async function GET(req: Request) {
       [uid, email]
     )
 
-    const { rows } = await pool.query(
+    const userId = userInsert.rows[0].id;
+
+    const alerts = await query(
       `
       WITH alerts AS (
         SELECT course_id, section_num, alert_type, seat_threshold
@@ -90,11 +90,18 @@ export async function GET(req: Request) {
       ORDER BY s.course_name
       `,
       [userId, TERM]
-    )
+    );
 
-    return NextResponse.json(rows)
+    return NextResponse.json(alerts.rows)
   } catch (err) {
     console.error(err)
     return NextResponse.json({ error: 'Server error' }, { status: 500 })
   }
 }
+
+
+
+
+
+
+

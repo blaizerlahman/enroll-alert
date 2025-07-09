@@ -25,7 +25,7 @@ type Props = {
   courseId: string
   sectionNum: string
   openSeats: number
-  subsections: Subsection[]
+  subsections?: Subsection[]
 }
 
 export default function NotifyPopup({
@@ -34,17 +34,17 @@ export default function NotifyPopup({
   courseId,
   sectionNum,
   openSeats,
-  subsections,
+  subsections = [],
 }: Props) {
-  const closedSubs = subsections.filter(s => s.open_seats === 0)
+  const closedSubs  = subsections.filter(s => s.open_seats === 0)
   const alreadyOpen = subsections.filter(s => s.open_seats > 0)
-  const hasClosed = closedSubs.length > 0
-  const hasOpen = alreadyOpen.length > 0
+  const hasClosed   = closedSubs.length  > 0
+  const hasOpen     = alreadyOpen.length > 0
 
-  const [mode, setMode] = useState<'any' | 'threshold'>('any')
-  const [threshold, setThreshold] = useState('1')
-  const [multiSubs, setMultiSubs] = useState<string[]>([])
-  const [singleSub, setSingleSub] = useState('')
+  const [mode,        setMode]      = useState<'any' | 'threshold'>('any')
+  const [threshold,   setThreshold] = useState('1')
+  const [multiSubs,   setMultiSubs] = useState<string[]>([])
+  const [singleSub,   setSingleSub] = useState('')
 
   const allChecked = multiSubs.length === closedSubs.length && hasClosed
   const chosenOpenSeats =
@@ -61,12 +61,19 @@ export default function NotifyPopup({
 
   useEffect(() => {
     if (!hasClosed && !hasOpen) return
-    if (mode === 'any' && !hasClosed) setMode('threshold')
+    if (mode === 'any' && !hasClosed)     setMode('threshold')
     if (mode === 'threshold' && !hasOpen) setMode('any')
   }, [mode, hasClosed, hasOpen])
 
-  const multiBtn = multiSubs.length ? multiSubs.join(', ') : 'Select sections'
-  const singleBtn = singleSub || 'Select section'
+  const multiBtn        = multiSubs.length ? multiSubs.join(', ') : 'Select sections'
+  const singleBtn       = singleSub || 'Select section'
+  const singleBtnMobile = singleSub || 'Section'
+
+  const Line = ({ children }: { children: React.ReactNode }) => (
+    <span className="inline-flex flex-nowrap items-center gap-2">
+      {children}
+    </span>
+  )
 
   const submit = async () => {
     if (!auth.currentUser) {
@@ -79,19 +86,12 @@ export default function NotifyPopup({
     }
     if (mode === 'threshold') {
       if (subsections.length > 0) {
-        if (!singleSub) {
-          toast.error('Select a subsection.')
-          return
-        }
+        if (!singleSub) { toast.error('Select a subsection.'); return }
         if (+threshold > chosenOpenSeats) {
-          toast.error('Threshold exceeds current open seats.')
-          return
+          toast.error('Threshold exceeds current open seats.'); return
         }
-      } else {
-        if (+threshold > openSeats) {
-          toast.error('Threshold exceeds current open seats.')
-          return
-        }
+      } else if (+threshold > openSeats) {
+        toast.error('Threshold exceeds current open seats.'); return
       }
     }
 
@@ -99,7 +99,7 @@ export default function NotifyPopup({
       const token = await auth.currentUser.getIdToken()
 
       // create request body that contains section alert info
-      const body = {
+      const body  = {
         token,
         courseId,
         sectionNum:
@@ -108,15 +108,15 @@ export default function NotifyPopup({
             : mode === 'any'
             ? multiSubs
             : [singleSub],
-        alertType: mode,
+        alertType:     mode,
         seatThreshold: mode === 'threshold' ? +threshold : null,
       }
 
-      // get response body from notifications API call
-      const response = await fetch('/api/notifications', {
+      // get resonse body from notifications API call
+      const response  = await fetch('/api/notifications', {
         method: 'POST',
-        body: JSON.stringify(body),
-        headers: { 'Content-Type': 'application/json' },
+        body:   JSON.stringify(body),
+        headers:{ 'Content-Type': 'application/json' },
       })
 
       const data = await response.json()
@@ -141,7 +141,7 @@ export default function NotifyPopup({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Notify me:</DialogTitle>
+          <DialogTitle className="text-center">Notify me:</DialogTitle>
         </DialogHeader>
 
         <RadioGroup
@@ -151,16 +151,14 @@ export default function NotifyPopup({
         >
           {subsections.length === 0 ? (
             openSeats === 0 ? (
-              <div className="flex items-center gap-2">
+              <label className="inline-flex items-center gap-2">
                 <RadioGroupItem id="any-lecture" value="any" />
-                <label htmlFor="any-lecture">
-                  When any seats open in {sectionNum}
-                </label>
-              </div>
+                When any seats open in&nbsp;{sectionNum}
+              </label>
             ) : (
-              <div className="flex items-center gap-2">
+              <label className="inline-flex items-center gap-2">
                 <RadioGroupItem id="th-lecture" value="threshold" />
-                <label htmlFor="th-lecture" className="flex items-center gap-2">
+                <Line>
                   When&nbsp;≤
                   <Input
                     type="number"
@@ -171,79 +169,76 @@ export default function NotifyPopup({
                     className="w-16"
                     disabled={mode !== 'threshold'}
                   />
-                  seats open in {sectionNum}
-                </label>
-              </div>
+                  seats open in&nbsp;{sectionNum}
+                </Line>
+              </label>
             )
           ) : (
             <>
               {hasClosed && (
-                <div className="flex items-center gap-2">
-                  <RadioGroupItem id="any" value="any" />
-                  <label htmlFor="any" className="flex items-center gap-2">
+                <label className="flex flex-col sm:flex-row items-center gap-2 text-center">
+                  <Line>
+                    <RadioGroupItem id="any" value="any" />
                     When any seats open in
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-40 truncate text-left"
-                        >
-                          {multiBtn}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-[220px] p-0">
-                        <Command>
-                          <CommandList>
-                            <CommandItem>
+                  </Line>
+
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mx-auto sm:mx-0 mt-2 sm:mt-0 w-32 sm:w-40 truncate text-left"
+                      >
+                        <span className="sm:hidden">
+                          {multiSubs.length ? multiBtn : 'Sections'}
+                        </span>
+                        <span className="hidden sm:inline">{multiBtn}</span>
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[220px] p-0">
+                      <Command>
+                        <CommandList>
+                          <CommandItem>
+                            <Checkbox
+                              id="all-sections"
+                              checked={allChecked}
+                              onCheckedChange={c =>
+                                setMultiSubs(
+                                  c ? closedSubs.map(s => s.section_num) : [],
+                                )
+                              }
+                            />
+                            <Label htmlFor="all-sections" className="font-semibold">
+                              All sections
+                            </Label>
+                          </CommandItem>
+                          {closedSubs.map(s => (
+                            <CommandItem key={s.section_num}>
                               <Checkbox
-                                id="all-sections"
-                                checked={allChecked}
-                                onCheckedChange={checked =>
-                                  setMultiSubs(
-                                    checked
-                                      ? closedSubs.map(s => s.section_num)
-                                      : []
+                                id={s.section_num}
+                                checked={multiSubs.includes(s.section_num)}
+                                onCheckedChange={() =>
+                                  setMultiSubs(prev =>
+                                    prev.includes(s.section_num)
+                                      ? prev.filter(x => x !== s.section_num)
+                                      : [...prev, s.section_num],
                                   )
                                 }
                               />
-                              <Label
-                                htmlFor="all-sections"
-                                className="font-semibold"
-                              >
-                                All sections
-                              </Label>
+                              <Label htmlFor={s.section_num}>{s.section_num}</Label>
                             </CommandItem>
-                            {closedSubs.map(s => (
-                              <CommandItem key={s.section_num}>
-                                <Checkbox
-                                  id={s.section_num}
-                                  checked={multiSubs.includes(s.section_num)}
-                                  onCheckedChange={() =>
-                                    setMultiSubs(prev => {
-                                      const next = prev.includes(s.section_num)
-                                        ? prev.filter(x => x !== s.section_num)
-                                        : [...prev, s.section_num]
-                                      return next
-                                    })
-                                  }
-                                />
-                                <Label htmlFor={s.section_num}>
-                                  {s.section_num}
-                                </Label>
-                              </CommandItem>
-                            ))}
-                          </CommandList>
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
-                  </label>
-                </div>
+                          ))}
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </label>
               )}
+
               {hasOpen && (
-                <div className="flex items-center gap-2">
-                  <RadioGroupItem id="th" value="threshold" />
-                  <label htmlFor="th" className="flex items-center gap-2">
+                <label className="flex flex-col sm:flex-row items-center gap-2 text-center">
+                  <Line>
+                    <RadioGroupItem id="th" value="threshold" />
                     When&nbsp;≤
                     <Input
                       type="number"
@@ -255,41 +250,43 @@ export default function NotifyPopup({
                       disabled={mode !== 'threshold'}
                     />
                     seats open in
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-40 truncate text-left"
-                        >
-                          {singleBtn}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-[200px] p-0">
-                        <Command>
-                          <CommandList>
-                            {alreadyOpen.map(s => (
-                              <CommandItem
-                                key={s.section_num}
-                                onSelect={() => setSingleSub(s.section_num)}
-                              >
-                                {s.section_num} ({s.open_seats})
-                              </CommandItem>
-                            ))}
-                          </CommandList>
-                        </Command>
-                      </PopoverContent>
-                    </Popover>
-                  </label>
-                </div>
+                  </Line>
+
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mx-auto sm:mx-0 mt-2 sm:mt-0 w-32 sm:w-40 truncate text-left"
+                      >
+                        <span className="sm:hidden">{singleBtnMobile}</span>
+                        <span className="hidden sm:inline">{singleBtn}</span>
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[200px] p-0">
+                      <Command>
+                        <CommandList>
+                          {alreadyOpen.map(s => (
+                            <CommandItem
+                              key={s.section_num}
+                              onSelect={() => setSingleSub(s.section_num)}
+                            >
+                              {s.section_num} ({s.open_seats})
+                            </CommandItem>
+                          ))}
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                </label>
               )}
             </>
           )}
         </RadioGroup>
 
-        <Button 
+        <Button
           variant="outline"
-          className="w-full border-2 border-red-500 text-red-500 hover:bg-red-500 hover:text-white"
+          className="w-full sm:w-60 mx-auto block border-2 border-red-500 text-red-500 hover:bg-red-500 hover:text-white"
           onClick={submit}
         >
           Save alert

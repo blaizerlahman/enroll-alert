@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getAdminAuth } from '@/lib/firebase-admin'
-import { Pool } from 'pg'
-
-const pool = new Pool({ connectionString: process.env.POSTGRES_URL })
+import { query } from '@/lib/db'
+import { IdRow, CountRow, ExistsRow } from '@/lib/types'
 
 export async function POST(req: Request) {
   try {
@@ -24,9 +23,7 @@ export async function POST(req: Request) {
     }
 
     // upsert user and get their id
-    const {
-      rows: [{ id: userId }],
-    } = await pool.query(
+    const userResult = await query<IdRow>(
       `
       INSERT INTO users (firebase_uid, email)
       VALUES ($1, $2)
@@ -36,16 +33,16 @@ export async function POST(req: Request) {
       `,
       [firebaseUid, email]
     )
+    const userId = userResult.rows[0].id
 
     // get number of already existing alerts for the user
-    const {
-      rows: [{ count: existingAlerts }],
-    } = await pool.query<{ count: number }>(
+    const countResult = await query<CountRow>(
       `SELECT COUNT(*)::int AS count
        FROM user_courses
        WHERE user_id = $1`,
       [userId],
-    );
+    )
+    const existingAlerts = countResult.rows[0].count
 
     // check if adding selected alerts will put user over limit and return error if so
     if (existingAlerts + sectionNum.length > 20) {
@@ -58,7 +55,7 @@ export async function POST(req: Request) {
     // check each selected section and return an error if any already exist
     // and return error if so
     for (const sec of sectionNum) {
-      const { rows: [{ exists }] } = await pool.query<{ exists: boolean }>(
+      const existsResult = await query<ExistsRow>(
         `
         SELECT EXISTS(
           SELECT 1
@@ -72,7 +69,7 @@ export async function POST(req: Request) {
         `,
         [userId, courseId, sec, alertType, seatThreshold ?? null]
       )
-      if (exists) {
+      if (existsResult.rows[0].exists) {
         return NextResponse.json(
           { error: 'You’ve already saved that exact alert.' },
           { status: 409 }
@@ -80,7 +77,7 @@ export async function POST(req: Request) {
       }
 
       // insert course alert into DB
-      await pool.query(
+      await query(
         `
         INSERT INTO user_courses
                (user_id, course_id, section_num, alert_type, seat_threshold)
@@ -108,14 +105,13 @@ export async function DELETE(req: Request) {
     const { token, courseId, sectionNum } = await req.json()
     const { uid: firebaseUid } = await adminAuth.verifyIdToken(token, true)
 
-    const {
-      rows: [{ id: userId }],
-    } = await pool.query(
+    const userResult = await query<IdRow> (
       `SELECT id FROM users WHERE firebase_uid = $1`,
       [firebaseUid]
     )
+    const userId = userResult.rows[0].id
 
-    await pool.query(
+    await query(
       `
       DELETE FROM user_courses
       WHERE user_id     = $1

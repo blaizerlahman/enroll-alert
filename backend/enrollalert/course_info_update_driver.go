@@ -138,7 +138,7 @@ func updateSeatInfoDB(pool *pgxpool.Pool, coursesSeatInfo []*Course) error {
 // course seat info from UW Madison enrollment API. Uses scraped data to update Postgres database for
 // specified courses
 // Returns error on failure
-func CourseInfoUpdateDriver(pool *pgxpool.Pool, courseNames []string, batchSize int) error {
+func CourseInfoUpdateDriver(pool *pgxpool.Pool, courseNames []string, batchSize int, delayTime int) error {
 
 	// get course codes from database for specified courses
 	courseCodes, err := getCourseCodesFromDB(pool, courseNames)
@@ -149,7 +149,7 @@ func CourseInfoUpdateDriver(pool *pgxpool.Pool, courseNames []string, batchSize 
 	// batch course IDs
 	batches := batchCourseIDs(courseCodes, batchSize)
 
-	const delay = 5 * time.Second
+	delay := time.Duration(delayTime) * time.Second
 
 	// perform API scrape and DB upload in batches
 	for i, courseIDBatch:= range batches {

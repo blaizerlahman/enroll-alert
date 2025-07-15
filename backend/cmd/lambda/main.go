@@ -16,7 +16,8 @@ var (
 	initFlag      = flag.Bool("init", false, "")
 	countFlag     = flag.Int("count", 5666, "")
 	termFlag      = flag.Int("term", 1262, "")
-	batchSizeFlag = flag.Int("batchsize", 100, "")
+	batchSizeFlag = flag.Int("batchsize", 50, "")
+	delayTimeFlag = flag.Int("delay", 10, "")
 	parseOnce     sync.Once
 )
 
@@ -25,6 +26,7 @@ type Config struct {
 	count     int
 	term      int
 	batchSize int
+	delayTime int
 	postgresURL     string
 }
 
@@ -57,6 +59,7 @@ func loadConfig() Config {
 		count:     envInt("COUNT", *countFlag),
 		term:      envInt("TERM", *termFlag),
 		batchSize: envInt("BATCHSIZE", *batchSizeFlag),
+		delayTime: envInt("DELAYTIME", *delayTimeFlag),
 		postgresURL:     os.Getenv("POSTGRES_URL"),
 	}
 }
@@ -88,7 +91,7 @@ func run(ctx context.Context, config Config) error {
 	}
 
 	// scrape API for course section info and update DB
-	if err := enrollalert.CourseInfoUpdateDriver(pool, ids, config.batchSize); err != nil {
+	if err := enrollalert.CourseInfoUpdateDriver(pool, ids, config.batchSize, config.delayTime); err != nil {
 		return err
 	}
 

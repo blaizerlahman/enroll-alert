@@ -24,8 +24,6 @@ type Alert = {
   open_seats: number
   capacity: number
   enrolled: number
-  waitlist_capacity: number
-  waitlist_open_spots: number
   alert_type: 'any' | 'threshold'
   seat_threshold: number | null
 }
@@ -141,8 +139,7 @@ export default function MyCoursesPage() {
             <CardContent className="space-y-3">
               <p className="text-sm">
                 Enrolled {course.total_enr}/{course.total_cap} · Open{' '}
-                {course.total_open} · Waitlist {course.total_wl_open}/
-                {course.total_wl_cap}
+                {course.total_open}
               </p>
 
               <ul className="space-y-2">

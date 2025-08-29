@@ -33,8 +33,6 @@ type Course = {
   total_enrolled: number
   total_capacity: number
   total_open_seats: number
-  total_waitlist_capacity: number
-  total_waitlist_open: number
   has_subsections: boolean
 }
 
@@ -44,8 +42,6 @@ type Discussion = {
   capacity: number
   enrolled: number
   open_seats: number
-  waitlist_capacity: number
-  waitlist_open_spots: number
 }
 
 type Lecture = {
@@ -54,8 +50,6 @@ type Lecture = {
   capacity: number
   enrolled: number
   open_seats: number
-  waitlist_capacity: number
-  waitlist_open_spots: number
   discussions: Discussion[]
 }
 
@@ -311,9 +305,6 @@ export default function CoursesClient({
                     <span className="inline-flex items-center rounded-full border-2 px-3 py-1 text-base font-medium">
                       Open Seats:&nbsp;{course.total_open_seats}
                     </span>
-                    <span className="inline-flex items-center rounded-full border-2 px-3 py-1 text-base font-medium">
-                      Waitlist:&nbsp;{course.total_waitlist_open}/{course.total_waitlist_capacity}
-                    </span>
                   </div>
 
                   {expanded[course.course_id] &&
@@ -360,8 +351,6 @@ export default function CoursesClient({
                             <p className="text-sm text-muted-foreground">
                               Enrolled {lec.enrolled}/{lec.capacity}
                               &nbsp;·&nbsp;Open {lec.open_seats}
-                              &nbsp;·&nbsp;Waitlist{' '}
-                              {lec.waitlist_open_spots}/{lec.waitlist_capacity}
                             </p>
 
                             {lec.discussions.length > 0 && (

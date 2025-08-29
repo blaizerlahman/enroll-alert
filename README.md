@@ -26,6 +26,8 @@ This [diagram](https://excalidraw.com/#json=EtAxdgVJvC4ljiklX6Lbq,0gplpgcVAYaZrh
 * **Frontend**: Built with Next.js, React, and Typescript with Shadcn components, deployed via Vercel. Next.js API endpoints are called with user actions, retrieving from and updating PostgreSQL database. Firebase used for authentication.
 
 ## Local Development
+**DISCLAIMER**: This project scrapes data from a public, university site whose purpose is to serve UW-Madison students. Please obtain permission before use and employ best practices.
+
 A Dockerfile will be provided in future commits, but for now this serves as a somewhat simple guide to run the scraper locally.
 
 To run the course scraper locally, `git clone` and spin up a PostgreSQL database and save the connection string as an environment variable `POSTGRES_URL`. Run `go build -o scraper backend/cmd/main.go` (not `backend/cmd/lambda/main.go`), and once built run `./scraper -init`. For subsequent runs, just do `./scraper`. Currently, the scraper is set to scrape **Fall 2025** courses by default, but term can be specified by running `./scraper -term <term-number>`, with the term number you want being found via the Course Search & Enroll API. If you've configured your `courses` and `course_sections` tables correctly, both should be populated with current course info. Happy scraping!

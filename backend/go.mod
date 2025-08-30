@@ -3,6 +3,7 @@ module enroll-alert
 go 1.24.3
 
 require (
+	github.com/blaizerlahman/enroll-alert-priv v0.1.0
 	github.com/PuerkitoBio/goquery v1.10.3 // indirect
 	github.com/andybalholm/cascadia v1.3.3 // indirect
 	github.com/antchfx/htmlquery v1.3.4 // indirect

@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"sync"
 	"enroll-alert/enrollalert"
+	"github.com/blaizerlahman/enroll-alert-priv"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/jackc/pgx/v5/pgxpool"
 )

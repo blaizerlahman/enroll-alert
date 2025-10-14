@@ -7,27 +7,18 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
-  DialogClose,
 } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
 
 export default function BreakPopup() {
   const [open, setOpen] = useState(false)
 
   useEffect(() => {
-    try {
-      const closed = localStorage.getItem('enrollalert:breakClosed')
-      if (!closed) setOpen(true)
-    } catch (err) {
-      setOpen(true)
-    }
+    const closed = localStorage.getItem('enrollalert:breakClosed')
+    if (!closed) setOpen(true)
   }, [])
 
   const close = () => {
-    try {
-      localStorage.setItem('enrollalert:breakClosed', '1')
-    } catch (err) {}
+    localStorage.setItem('enrollalert:breakClosed', '1')
     setOpen(false)
   }
 

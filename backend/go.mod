@@ -2,8 +2,11 @@ module enroll-alert
 
 go 1.24.3
 
+require github.com/blaizerlahman/enroll-alert-query v0.1.0
+
+replace github.com/blaizerlahman/enroll-alert-query => ../../enroll-alert-query
+
 require (
-	github.com/blaizerlahman/enroll-alert-priv v0.1.0
 	github.com/PuerkitoBio/goquery v1.10.3 // indirect
 	github.com/andybalholm/cascadia v1.3.3 // indirect
 	github.com/antchfx/htmlquery v1.3.4 // indirect
@@ -26,6 +29,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sts v1.34.0 // indirect
 	github.com/aws/smithy-go v1.22.4 // indirect
 	github.com/bits-and-blooms/bitset v1.22.0 // indirect
+	github.com/blaizerlahman/enroll-alert-query v0.1.0 // indirect
 	github.com/corpix/uarand v0.2.0 // indirect
 	github.com/go-rod/rod v0.116.2 // indirect
 	github.com/gobwas/glob v0.2.3 // indirect

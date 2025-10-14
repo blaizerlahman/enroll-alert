@@ -3,12 +3,13 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"strconv"
 	"sync"
 	"enroll-alert/enrollalert"
-	"github.com/blaizerlahman/enroll-alert-priv"
+	"github.com/blaizerlahman/enroll-alert-query/enrollalertquery"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -114,6 +115,12 @@ func handler(ctx context.Context) error {
 
 // main Main function for AWS Lambda
 func main() {
+
+  err := enrollalertquery.QueryRecentChanges("1256")
+	if err != nil {
+		fmt.Println(err)
+	}
+	return
 	if os.Getenv("AWS_LAMBDA_FUNCTION_NAME") != "" {
 		lambda.Start(handler)
 		return

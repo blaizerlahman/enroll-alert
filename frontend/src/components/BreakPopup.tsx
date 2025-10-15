@@ -38,7 +38,7 @@ export default function BreakPopup() {
         </DialogHeader>
 
         <p className="py-4 text-center text-m text-muted-foreground">
-          EnrollAlert is on break until enrollment for the Spring 2025 semester begins.
+          EnrollAlert is on break until enrollment for the Spring 2026 semester begins.
           Check back in soon!
         </p>
       </DialogContent>

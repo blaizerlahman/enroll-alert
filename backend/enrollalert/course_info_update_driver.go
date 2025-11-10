@@ -22,9 +22,9 @@ func updateSeatInfoDB(pool *pgxpool.Pool, coursesSeatInfo []*Course) error {
 		INSERT INTO course_sections (
 			term, course_id, section_num, section_type, subject_id, course_name, course_title,
 			capacity, enrolled, open_seats, waitlist_capacity, waitlist_open_spots, 
-			prof_name, last_updated
+			prof_name, course_status, last_updated
 		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, CURRENT_TIMESTAMP)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, CURRENT_TIMESTAMP)
 		ON CONFLICT (course_id, section_num)
 		DO UPDATE SET
 			section_type        = EXCLUDED.section_type,
@@ -37,10 +37,10 @@ func updateSeatInfoDB(pool *pgxpool.Pool, coursesSeatInfo []*Course) error {
 			waitlist_capacity   = EXCLUDED.waitlist_capacity,
 			waitlist_open_spots = EXCLUDED.waitlist_open_spots,
 			prof_name           = EXCLUDED.prof_name,
+			course_status       = EXCLUDED.course_status,
 			last_updated        = CURRENT_TIMESTAMP;
 	`
 
-	// create map to detect duplicates from scraper
 	var key string
 	inserted := make(map[string]bool)
 
@@ -48,26 +48,48 @@ func updateSeatInfoDB(pool *pgxpool.Pool, coursesSeatInfo []*Course) error {
 		for _, enrollmentPackage := range course.EnrollmentPackages {
 			for _, section := range enrollmentPackage.Sections {
 
-				// skip already inserted duplicates to avoid redundancy
 				key = fmt.Sprintf("%s-%s", section.CourseID, section.SectionNumber)
 				if inserted[key] {
 					continue
 				}
 
-				// insert section info into database
 				_, err := pool.Exec(context.Background(), query,
-
 					TermNum, section.CourseID, section.SectionNumber, section.ClassType, section.Subject.SubjectID,
 					fmt.Sprintf("%s %s", section.Subject.ShortDesc, section.CatalogNumber),
 					course.CourseTitle, section.EnrollmentStatus.Capacity,
 					section.EnrollmentStatus.CurrentlyEnrolled, section.EnrollmentStatus.OpenSeats,
 					section.EnrollmentStatus.WaitlistCapacity, section.EnrollmentStatus.WaitlistOpenSpots,
 					fmt.Sprintf("%s %s", section.Professor.Name.First, section.Professor.Name.Last),
+					section.Status,
 				)
 
 				if err != nil {
 					return fmt.Errorf("Failed to insert section %s course %s: %w",
 						section.SectionNumber, section.CourseID, err)
+				}
+
+				// fetch course_name and course_title from courses table and update course_sections
+				var courseName string
+				var courseTitle string
+				var courseStatus string
+				err = pool.QueryRow(context.Background(),
+					`SELECT course_name, course_title, status FROM public.courses WHERE course_id = $1 AND term = $2 LIMIT 1`,
+					section.CourseID, TermNum).Scan(&courseName, &courseTitle, &courseStatus)
+				if err != nil {
+					log.Printf("Could not find course row for course_id=%s term=%d: %v", section.CourseID, TermNum, err)
+				} else {
+					_, err = pool.Exec(context.Background(),
+						`UPDATE course_sections SET course_name = $1, course_title = $2 WHERE course_id = $3 AND section_num = $4 AND term = $5`,
+						courseName, courseTitle, section.CourseID, section.SectionNumber, TermNum)
+					if err != nil {
+						log.Printf("Failed to update course_sections names/status for %s %s: %v", section.CourseID, section.SectionNumber, err)
+					}
+					_, err = pool.Exec(context.Background(),
+						`UPDATE public.courses SET status = $1 WHERE course_id = $2 AND term = $3`,
+						section.Status, section.CourseID, TermNum)
+					if err != nil {
+						log.Printf("Failed to update public.courses status for %s: %v", section.CourseID, err)
+					}
 				}
 
 				inserted[key] = true
@@ -131,6 +153,7 @@ func CourseInfoUpdateDriver(pool *pgxpool.Pool) error {
 					CatalogNumber: querySection.CatalogNumber,
 					SectionNumber: querySection.SectionNumber,
 					ClassType:     querySection.ClassType,
+					Status:        querySection.Status,
 				}
 				sec.Subject.SubjectID = querySection.Subject.SubjectID
 				sec.Subject.ShortDesc = querySection.Subject.ShortDesc

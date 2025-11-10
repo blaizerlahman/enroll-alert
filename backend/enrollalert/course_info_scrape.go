@@ -1,13 +1,14 @@
 package enrollalert
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"io/ioutil"
-	"context"
+	"log"
 	"net/http"
 	"sync"
+
 	"github.com/corpix/uarand"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -16,13 +17,14 @@ import (
 type Section struct {
 	CourseID      string `json:"courseId`
 	CatalogNumber string `json:"catalogNumber`
-	SectionNumber	string `json:"sectionNumber"`
+	SectionNumber string `json:"sectionNumber"`
 	ClassType     string `json:"type"`
+	Status        string
 
 	// structure of subject section
 	Subject struct {
-		SubjectID  int    `json:subjectCode`
-		ShortDesc  string `json:"shortDescription"`
+		SubjectID int    `json:subjectCode`
+		ShortDesc string `json:"shortDescription"`
 	} `json:"subject"`
 
 	// structure of instructor section
@@ -32,25 +34,25 @@ type Section struct {
 			Last  string `json:"last"`
 		} `json:"name"`
 	} `json:"instructor"`
-	
+
 	// structure of enrollmentStatus section
 	EnrollmentStatus struct {
-		Capacity              int    `json:"capacity"`
-		CurrentlyEnrolled     int    `json:"currentlyEnrolled"`
-		OpenSeats             int    `json:"openSeats"`
-		WaitlistOpenSpots     int    `json:"openWaitlistSpots"`
-		WaitlistCapacity		  int    `json:"aggregateWaitlistCapacity`
-	} `json:"enrollmentStatus`	
+		Capacity          int `json:"capacity"`
+		CurrentlyEnrolled int `json:"currentlyEnrolled"`
+		OpenSeats         int `json:"openSeats"`
+		WaitlistOpenSpots int `json:"openWaitlistSpots"`
+		WaitlistCapacity  int `json:"aggregateWaitlistCapacity`
+	} `json:"enrollmentStatus`
 }
 
 // overall response structure
 type EnrollmentPackage struct {
-	Sections []Section	`json:"sections"`
+	Sections []Section `json:"sections"`
 }
 
 // hold all enrollment packages (sections) for a particular course
 type Course struct {
-	EnrollmentPackages []*EnrollmentPackage 
+	EnrollmentPackages []*EnrollmentPackage
 	CourseTitle        string
 }
 
@@ -66,7 +68,7 @@ func getSectionInfo(courseCodes *CourseCodes) ([]*EnrollmentPackage, error) {
 		return nil, fmt.Errorf("Error while creating GET request: %w\n", err)
 	}
 
-	// generate random user-agent 
+	// generate random user-agent
 	userAgent := uarand.GetRandom()
 
 	// set headers with random user-agent and specified course term/subject
@@ -107,7 +109,7 @@ func getSectionInfo(courseCodes *CourseCodes) ([]*EnrollmentPackage, error) {
 	}
 
 	return sectionPtrs, nil
-} 
+}
 
 // markHasSectionInSectionCache Updates course cache table with if given course has a section
 // or not so redundant scraping can be avoided
@@ -129,14 +131,14 @@ func markHasSectionInSectionCache(pool *pgxpool.Pool, courseID string, hasSectio
 	return nil
 }
 
-// courseInfoScrape Scrape section informaiton from given courses from UW-Madison 
-// enrollment API using goroutines. 
+// courseInfoScrape Scrape section informaiton from given courses from UW-Madison
+// enrollment API using goroutines.
 // Returns a list of pointers to Course objects containing section information for course
 func courseInfoScrape(pool *pgxpool.Pool, courseCodes []*CourseCodes) []*Course {
 
-	var waitGroup  sync.WaitGroup
-	var mutex      sync.Mutex
-	var courses    []*Course
+	var waitGroup sync.WaitGroup
+	var mutex sync.Mutex
+	var courses []*Course
 
 	// create job channel
 	jobs := make(chan *CourseCodes, len(courseCodes))
@@ -153,7 +155,7 @@ func courseInfoScrape(pool *pgxpool.Pool, courseCodes []*CourseCodes) []*Course 
 			defer waitGroup.Done()
 			for courseCode := range jobs {
 
-				// scrape section info 
+				// scrape section info
 				enrollmentPackages, err := getSectionInfo(courseCode)
 				if err != nil {
 					log.Printf("Error getting section info for %s: %v\n", courseCode.CourseID, err)
@@ -161,7 +163,7 @@ func courseInfoScrape(pool *pgxpool.Pool, courseCodes []*CourseCodes) []*Course 
 				}
 
 				// create new course with retrieved section info and title
-				newCourse := &Course {
+				newCourse := &Course{
 					EnrollmentPackages: enrollmentPackages,
 					CourseTitle:        courseCode.CourseTitle,
 				}
@@ -184,7 +186,7 @@ func courseInfoScrape(pool *pgxpool.Pool, courseCodes []*CourseCodes) []*Course 
 		}()
 	}
 
-	// add courseCodes to channel 
+	// add courseCodes to channel
 	for _, courseCode := range courseCodes {
 		jobs <- courseCode
 	}
@@ -194,4 +196,3 @@ func courseInfoScrape(pool *pgxpool.Pool, courseCodes []*CourseCodes) []*Course 
 
 	return courses
 }
-	

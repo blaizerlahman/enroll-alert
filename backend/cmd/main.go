@@ -1,13 +1,14 @@
 package main
 
 import (
+	"context"
+	"enroll-alert/enrollalert"
 	"flag"
 	"fmt"
 	"log"
-	"time"
-	"context"
 	"os"
-	"enroll-alert/enrollalert"
+	"time"
+
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -15,21 +16,21 @@ func main() {
 
 	// check for init and count flag to conduct initial load (default is no initial load)
 	initialFlag := flag.Bool("init", false, "run initial course loading")
-	countFlag   := flag.Int("count", 5666, "number of courses to initially load")
+	countFlag := flag.Int("count", 5666, "number of courses to initially load")
 
-	// check for term number (Sping 2026 as default)
-	termFlag    := flag.Int("term", 1264, "term number to load courses for")
+	// check for term number (Spring 2026 as default)
+	termFlag := flag.Int("term", 1264, "term number to load courses for")
 
-	// check for batch size (100 as deafult)
-	batchSize   := flag.Int("batchsize", 100, "batch size of API calls")
-	
+	// check for batch size (100 as default)
+	batchSize := flag.Int("batchsize", 100, "batch size of API calls")
+
 	flag.Parse()
 
 	// set term number
 	enrollalert.TermNum = *termFlag
-  enrollalert.Term    = fmt.Sprintf("%d", enrollalert.TermNum)
+	enrollalert.Term = fmt.Sprintf("%d", enrollalert.TermNum)
 
-	log.Printf("Startup: init=%t, count=%d, term=%d",*initialFlag, *countFlag, *termFlag)
+	log.Printf("Startup: init=%t, count=%d, term=%d", *initialFlag, *countFlag, *termFlag)
 
 	timeStart := time.Now()
 
@@ -37,17 +38,17 @@ func main() {
 	if *initialFlag {
 		if err := enrollalert.InitialDriver(*countFlag); err != nil {
 			log.Fatalf("Error during initial load: %v", err)
-		} 
+		}
 
 		log.Printf("Initial load successful (%s)", time.Since(timeStart))
 		return
 	}
-	
+
 	// perform Postgres DB connection
 	pool, err := pgxpool.New(context.Background(), os.Getenv("POSTGRES_URL"))
 	if err != nil {
 		log.Fatalf("Failed to connect to DB: %v", err)
-	} 
+	}
 	defer pool.Close()
 
 	// get course ids from existing courses table
@@ -57,14 +58,14 @@ func main() {
 	}
 
 	log.Printf("Course ID retrieval successful.")
-	
+
 	// conduct course section info update
 	err = enrollalert.CourseInfoUpdateDriver(pool, courseIDs, *batchSize, 30)
 	if err != nil {
 		log.Fatalf("Error with course section info update: %v", err)
-	} 
+	}
 
-	// create email clients 
+	// create email clients
 	mail, err := enrollalert.NewEmailClient(context.Background(), os.Getenv("EMAIL_FROM"), os.Getenv("ALERT_TEMPLATE"))
 	if err != nil {
 		log.Fatalf("Error with email client creation: %v", err)
@@ -76,7 +77,7 @@ func main() {
 	}
 
 	log.Printf("Course section info update successful.")
-	
+
 	log.Printf("Course updating done in %s", time.Since(timeStart))
 
 	log.Printf("Course scrape and info update successful.")

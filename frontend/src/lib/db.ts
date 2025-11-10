@@ -5,6 +5,8 @@ import pLimit from 'p-limit'
 type GlobalPool = typeof global & {__dbPool?: Pool }
 const g = global as GlobalPool
 
+export const CURR_TERM = parseInt(process.env.SET_TERM ?? '1264', 10)
+
 export const db = 
   g.__dbPool ?? 
   (g.__dbPool = new Pool({
@@ -65,7 +67,7 @@ export async function getCourseSubsections(courseId: string) {
         capacity, enrolled, open_seats,
         waitlist_capacity, waitlist_open_spots
       FROM course_sections
-      WHERE course_id = $1 AND section_type = 'LEC'
+      WHERE course_id = $1 AND section_type = 'LEC' AND term = $2
     ),
     dis AS (
       SELECT
@@ -75,7 +77,7 @@ export async function getCourseSubsections(courseId: string) {
         waitlist_capacity, waitlist_open_spots,
         course_id
       FROM course_sections
-      WHERE course_id = $1 AND section_type IN ('DIS','LAB','SEM')
+      WHERE course_id = $1 AND section_type IN ('DIS','LAB','SEM') and term = $2
     )
     SELECT
       l.*,                                  
@@ -92,7 +94,7 @@ export async function getCourseSubsections(courseId: string) {
                         AND     300 +  l.lecture_num_int       * 20
     ORDER BY l.lecture_num, d.section_num;
   `
-  const { rows } = await query(sql, [courseId])
+  const { rows } = await query(sql, [courseId, CURR_TERM])
   return rows
 }
 
@@ -112,10 +114,9 @@ export async function getFilteredCourses<R extends QueryResultRow = Course>({
 }): Promise<R[]> {
   const offset = (page - 1) * perPage
 
-  const values = []
-  const whereClauses = [`section_type = 'LEC'`]
+  const values: (string|number|null|boolean)[] = []
+  const whereClauses: string[] = [`cs.section_type = 'LEC'`]
   let orderByClause = ''
-
 
   if (search) {
     values.push(`%${search.toLowerCase()}%`)
@@ -123,22 +124,22 @@ export async function getFilteredCourses<R extends QueryResultRow = Course>({
 
     whereClauses.push(`
       (
-        course_name ILIKE $${searchIndex}
-        OR course_title ILIKE $${searchIndex}
-        OR similarity(LOWER(course_name), LOWER($${searchIndex})) > 0.2
-        OR similarity(LOWER(course_title), LOWER($${searchIndex})) > 0.2
+        LOWER(cs.course_name) ILIKE LOWER($${searchIndex})
+        OR LOWER(cs.course_title) ILIKE LOWER($${searchIndex})
+        OR similarity(LOWER(cs.course_name), LOWER($${searchIndex})) > 0.2
+        OR similarity(LOWER(cs.course_title), LOWER($${searchIndex})) > 0.2
       )
     `)
 
     orderByClause = `ORDER BY GREATEST(
-      similarity(LOWER(course_name), LOWER($${searchIndex})),
-      similarity(LOWER(course_title), LOWER($${searchIndex}))
+      similarity(LOWER(cs.course_name), LOWER($${searchIndex})),
+      similarity(LOWER(cs.course_title), LOWER($${searchIndex}))
     ) DESC`
   }
 
   if (subject) {
-    values.push(`${subject} %`) 
-    whereClauses.push(`course_name ILIKE $${values.length}`)
+    values.push(`${subject} %`)
+    whereClauses.push(`cs.course_name ILIKE $${values.length}`)
   }
 
   let breadthFilter = ''
@@ -154,20 +155,23 @@ export async function getFilteredCourses<R extends QueryResultRow = Course>({
     `
   }
 
+  values.push(CURR_TERM)
+  whereClauses.push(`cs.term = $${values.length}`)
+
   const baseQuery = `
     SELECT
-      course_id,
-      course_name,
-      course_title,
-      subject_id,
-      SUM(open_seats) AS total_open_seats,
-      SUM(capacity) AS total_capacity,
-      SUM(enrolled) AS total_enrolled,
-      SUM(waitlist_capacity) AS total_waitlist_capacity,
-      SUM(waitlist_open_spots) AS total_waitlist_open,
+      cs.course_id,
+      cs.course_name,
+      cs.course_title,
+      cs.subject_id,
+      SUM(cs.open_seats) AS total_open_seats,
+      SUM(cs.capacity) AS total_capacity,
+      SUM(cs.enrolled) AS total_enrolled,
+      SUM(cs.waitlist_capacity) AS total_waitlist_capacity,
+      SUM(cs.waitlist_open_spots) AS total_waitlist_open,
       EXISTS (
         SELECT 1 FROM course_sections s2
-        WHERE s2.course_id = cs.course_id AND s2.section_type IN ('DIS', 'LAB')
+        WHERE s2.course_id = cs.course_id AND s2.section_type IN ('DIS', 'LAB') AND s2.term = cs.term
       ) AS has_subsections,
       ARRAY(
         SELECT cb.breadth_description
@@ -176,9 +180,9 @@ export async function getFilteredCourses<R extends QueryResultRow = Course>({
       ) AS breadths
     FROM course_sections cs
     WHERE ${whereClauses.join(' AND ')}
-    GROUP BY course_id, course_name, subject_id, course_title
+    GROUP BY cs.course_id, cs.course_name, cs.subject_id, cs.course_title, cs.term
     ${breadthFilter}
-    ${orderByClause || 'ORDER BY course_name'}
+    ${orderByClause || 'ORDER BY cs.course_name'}
   `
 
   const paginatedQuery = `
@@ -196,15 +200,16 @@ export async function getFilteredCourses<R extends QueryResultRow = Course>({
   return result.rows
 }
 
+
 // get existing subject
 export async function getSubjects() {
   const result = await query(`
     SELECT DISTINCT
       TRIM(REGEXP_REPLACE(course_name, '\\s\\d+.*$', '')) AS subject
-    FROM course_sections
-    WHERE course_name IS NOT NULL
+    FROM course_sections cs
+    WHERE cs.course_name IS NOT NULL AND cs.term = $1
     ORDER BY subject
-  `)
+  `, [CURR_TERM])
   return result.rows.map(r => r.subject)
 }
 
@@ -214,9 +219,9 @@ export async function getDiscussionSections(courseId: string) {
   const result = await query(`
     SELECT section_num, section_type, open_seats
     FROM course_sections
-    WHERE section_type IN ('DIS', 'LAB', 'SEM') AND course_id = $1
+    WHERE section_type IN ('DIS', 'LAB', 'SEM') AND course_id = $1 AND term = $2
     ORDER BY section_num
-  `, [courseId])
+  `, [courseId, CURR_TERM])
   return result.rows
 }
 

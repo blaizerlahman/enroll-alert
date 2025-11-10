@@ -5,6 +5,7 @@ import AuthProviderWrapper from "@/components/AuthProviderWrapper"
 import { Toaster } from "@/components/ui/sonner"
 import { Analytics } from "@vercel/analytics/next"
 import { SpeedInsights } from "@vercel/speed-insights/next"
+import BreakPopup from "@/components/BreakPopup"
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] })
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] })
@@ -38,7 +39,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body>
-        <AuthProviderWrapper>{children}</AuthProviderWrapper>
+        <AuthProviderWrapper>
+          <BreakPopup />
+          {children}
+        </AuthProviderWrapper>
         <Toaster />
         <Analytics />
         <SpeedInsights />

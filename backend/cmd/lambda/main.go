@@ -4,15 +4,21 @@ import (
 	"context"
 	"flag"
 	"fmt"
+
 	//"log"
+	"enroll-alert/enrollalert"
 	"os"
 	"strconv"
 	"sync"
-	"enroll-alert/enrollalert"
+
 	"github.com/blaizerlahman/enroll-alert-query/enrollalertquery"
+
 	//"github.com/aws/aws-lambda-go/lambda"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+// junk to allow compile, REMOVE IN PROD
+var _ = lambda.Start
 
 var (
 	initFlag      = flag.Bool("init", false, "")
@@ -24,12 +30,12 @@ var (
 )
 
 type Config struct {
-	init      bool
-	count     int
-	term      int
-	batchSize int
-	delayTime int
-	postgresURL     string
+	init        bool
+	count       int
+	term        int
+	batchSize   int
+	delayTime   int
+	postgresURL string
 }
 
 // envBool Parse boolean flag for given input.
@@ -57,12 +63,12 @@ func envInt(search string, defaultFlag int) int {
 func loadConfig() Config {
 	parseOnce.Do(flag.Parse)
 	return Config{
-		init:      envBool("INIT", *initFlag),
-		count:     envInt("COUNT", *countFlag),
-		term:      envInt("TERM", *termFlag),
-		batchSize: envInt("BATCHSIZE", *batchSizeFlag),
-		delayTime: envInt("DELAYTIME", *delayTimeFlag),
-		postgresURL:     os.Getenv("POSTGRES_URL"),
+		init:        envBool("INIT", *initFlag),
+		count:       envInt("COUNT", *countFlag),
+		term:        envInt("TERM", *termFlag),
+		batchSize:   envInt("BATCHSIZE", *batchSizeFlag),
+		delayTime:   envInt("DELAYTIME", *delayTimeFlag),
+		postgresURL: os.Getenv("POSTGRES_URL"),
 	}
 }
 
@@ -116,7 +122,7 @@ func handler(ctx context.Context) error {
 // main Main function for AWS Lambda
 func main() {
 
-  err := enrollalertquery.QueryRecentChanges("1264")
+	err := enrollalertquery.QueryRecentChanges("1264")
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -130,4 +136,3 @@ func main() {
 	//	log.Fatal(err)
 	//}
 }
-

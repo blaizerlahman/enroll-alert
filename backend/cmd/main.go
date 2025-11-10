@@ -17,10 +17,10 @@ func main() {
 	initialFlag := flag.Bool("init", false, "run initial course loading")
 	countFlag   := flag.Int("count", 5666, "number of courses to initially load")
 
-	// check for term number (Fall 2025 as default)
-	termFlag    := flag.Int("term", 1262, "term number to load courses for")
+	// check for term number (Spring 2026 as default)
+	termFlag    := flag.Int("term", 1264, "term number to load courses for")
 
-	// check for batch size (100 as deafult)
+	// check for batch size (100 as default)
 	batchSize   := flag.Int("batchsize", 100, "batch size of API calls")
 	
 	flag.Parse()
@@ -29,8 +29,7 @@ func main() {
 	enrollalert.TermNum = *termFlag
   enrollalert.Term    = fmt.Sprintf("%d", enrollalert.TermNum)
 
-	log.Printf("Startup: init=%t, count=%d, term=%d",
-		*initialFlag, *countFlag, *termFlag)
+	log.Printf("Startup: init=%t, count=%d, term=%d", *initialFlag, *countFlag, *termFlag)
 
 	timeStart := time.Now()
 
@@ -60,13 +59,13 @@ func main() {
 	log.Printf("Course ID retrieval successful.")
 	
 	// conduct course section info update
-	err = enrollalert.CourseInfoUpdateDriver(pool, courseIDs, *batchSize)
+	err = enrollalert.CourseInfoUpdateDriver(pool, courseIDs, *batchSize, 10)
 	if err != nil {
 		log.Fatalf("Error with course section info update: %v", err)
 	} 
 
 	// create email clients 
-	mail, err := enrollalert.NewEmailClient(context.Background(), os.Getenv("EMAIL_FROM"))
+	mail, err := enrollalert.NewEmailClient(context.Background(), os.Getenv("EMAIL_FROM"), os.Getenv("ALERT_TEMPLATE"))
 	if err != nil {
 		log.Fatalf("Error with email client creation: %v", err)
 	}

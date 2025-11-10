@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getAdminAuth } from '@/lib/firebase-admin'
-import { query } from '@/lib/db'
+import { query, CURR_TERM } from '@/lib/db'
 import { IdRow } from '@/lib/types'
 
 const TERM = parseInt(process.env.NEXT_PUBLIC_TERM ?? '1262', 10)
@@ -89,7 +89,7 @@ export async function GET(req: Request) {
         ag.total_wl_open, ag.total_wl_cap
       ORDER BY s.course_name
       `,
-      [userId, TERM]
+      [userId, CURR_TERM]
     );
 
     return NextResponse.json(alerts.rows)

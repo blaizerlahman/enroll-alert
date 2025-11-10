@@ -8,10 +8,13 @@ import (
 	"strconv"
 	"sync"
 	"enroll-alert/enrollalert"
-	"github.com/blaizerlahman/enroll-alert-priv"
+	enrollquery "github.com/blaizerlahman/enroll-alert-query/enrollalertquery"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+// junk to allow compile, REMOVE IN PROD
+var _ = lambda.Start
 
 var (
 	initFlag      = flag.Bool("init", false, "")
@@ -114,11 +117,15 @@ func handler(ctx context.Context) error {
 
 // main Main function for AWS Lambda
 func main() {
-	if os.Getenv("AWS_LAMBDA_FUNCTION_NAME") != "" {
-		lambda.Start(handler)
-		return
-	}
-	if err := run(context.Background(), loadConfig()); err != nil {
+	//if os.Getenv("AWS_LAMBDA_FUNCTION_NAME") != "" {
+	//	lambda.Start(handler)
+	//	return
+	//}
+	//if err := run(context.Background(), loadConfig()); err != nil {
+	//	log.Fatal(err)
+	//}
+
+	if err := enrollquery.QueryRecentChanges("1264"); err != nil {
 		log.Fatal(err)
 	}
 }

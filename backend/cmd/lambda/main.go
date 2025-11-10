@@ -93,13 +93,13 @@ func run(ctx context.Context, config Config) error {
 	defer pool.Close()
 
 	// grab course IDs from DB
-	ids, err := enrollalert.GetAllCourseIDs(pool)
-	if err != nil {
-		return err
-	}
+	//ids, err := enrollalert.GetAllCourseIDs(pool)
+	//if err != nil {
+	//return err
+	//}
 
 	// scrape API for course section info and update DB
-	if err := enrollalert.CourseInfoUpdateDriver(pool, ids, config.batchSize, config.delayTime); err != nil {
+	if err := enrollalert.CourseInfoUpdateDriver(pool); err != nil {
 		return err
 	}
 
@@ -122,17 +122,11 @@ func handler(ctx context.Context) error {
 // main Main function for AWS Lambda
 func main() {
 
-	err := enrollalertquery.QueryRecentChanges("1264")
-	if err != nil {
-		fmt.Println(err)
+	if os.Getenv("AWS_LAMBDA_FUNCTION_NAME") != "" {
+		lambda.Start(handler)
+		return
 	}
-	return
-
-	//if os.Getenv("AWS_LAMBDA_FUNCTION_NAME") != "" {
-	//	lambda.Start(handler)
-	//	return
-	//}
-	//if err := run(context.Background(), loadConfig()); err != nil {
-	//	log.Fatal(err)
-	//}
+	if err := run(context.Background(), loadConfig()); err != nil {
+		log.Fatal(err)
+	}
 }

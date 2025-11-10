@@ -3,72 +3,17 @@ package enrollalert
 import (
 	"context"
 	"fmt"
-	"time"
 	"log"
+
+	"github.com/blaizerlahman/enroll-alert-query/enrollalertquery"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type CourseCodes struct {
-	CourseID       string
-	SubjectID      string
-	CourseName     string
-	CourseTitle    string
-}
-
-// batchCourseIDs is a helper function that creates batches of size batchSize
-// of course IDs and returns them
-// returns a list of batches of course IDs
-func batchCourseIDs(courseIDs []*CourseCodes, batchSize int) [][]*CourseCodes {
-
-	var batches [][]*CourseCodes
-
-	// iterate through courseIDs, separating them into batches of batchSize IDs
-	for startIdx := 0; startIdx < len(courseIDs); startIdx += batchSize {
-
-		endIdx := startIdx + batchSize
-
-		// set endIdx to last ID if batch is at end
-		if endIdx > len(courseIDs) {endIdx = len(courseIDs)}
-
-		batches = append(batches, courseIDs[startIdx:endIdx])
-	}
-
-	return batches
-}
-
-// getCourseCodesFromDB Queries course and subject codes using course name and creates a list of
-// returns a list of pointers to CourseCodes containing course information
-func getCourseCodesFromDB(pool *pgxpool.Pool, courseIDs []string) ([]*CourseCodes, error) {
-
-	// perform query to retrieve course codes for specified courses and term
-	rows, err := pool.Query(context.Background(), `
-		SELECT DISTINCT ON (course_id) course_id, subject_id, course_name, course_title 
-		FROM public.courses
-		WHERE course_id = ANY($1)
-		  AND term = $2;
-	`, courseIDs, TermNum)
-	if err != nil {
-		return nil, fmt.Errorf("Error with course codes query: %w", err)
-	}
-	defer rows.Close()
-
-	var queryResults []*CourseCodes
-
-	// iterate through rows and create CourseCodes objects from data in rows
-	for rows.Next() {
-		currCourse := new(CourseCodes)
-		if err := rows.Scan(&currCourse.CourseID, &currCourse.SubjectID, &currCourse.CourseName,
-			&currCourse.CourseTitle); err != nil {
-				return nil, fmt.Errorf("Error with row scan: %w", err)
-		}
-		queryResults = append(queryResults, currCourse)
-	}
-
-	if rows.Err() != nil {
-		return nil, fmt.Errorf("Error with iteration: %w", rows.Err())
-	}
-
-	return queryResults, nil
+	CourseID    string
+	SubjectID   string
+	CourseName  string
+	CourseTitle string
 }
 
 func updateSeatInfoDB(pool *pgxpool.Pool, coursesSeatInfo []*Course) error {
@@ -98,12 +43,11 @@ func updateSeatInfoDB(pool *pgxpool.Pool, coursesSeatInfo []*Course) error {
 	// create map to detect duplicates from scraper
 	var key string
 	inserted := make(map[string]bool)
-	
 
 	for _, course := range coursesSeatInfo {
 		for _, enrollmentPackage := range course.EnrollmentPackages {
-			for _, section := range enrollmentPackage.Sections {	
-				
+			for _, section := range enrollmentPackage.Sections {
+
 				// skip already inserted duplicates to avoid redundancy
 				key = fmt.Sprintf("%s-%s", section.CourseID, section.SectionNumber)
 				if inserted[key] {
@@ -114,9 +58,9 @@ func updateSeatInfoDB(pool *pgxpool.Pool, coursesSeatInfo []*Course) error {
 				_, err := pool.Exec(context.Background(), query,
 
 					TermNum, section.CourseID, section.SectionNumber, section.ClassType, section.Subject.SubjectID,
-				  fmt.Sprintf("%s %s", section.Subject.ShortDesc, section.CatalogNumber), 
-				  course.CourseTitle, section.EnrollmentStatus.Capacity, 
-					section.EnrollmentStatus.CurrentlyEnrolled, section.EnrollmentStatus.OpenSeats, 
+					fmt.Sprintf("%s %s", section.Subject.ShortDesc, section.CatalogNumber),
+					course.CourseTitle, section.EnrollmentStatus.Capacity,
+					section.EnrollmentStatus.CurrentlyEnrolled, section.EnrollmentStatus.OpenSeats,
 					section.EnrollmentStatus.WaitlistCapacity, section.EnrollmentStatus.WaitlistOpenSpots,
 					fmt.Sprintf("%s %s", section.Professor.Name.First, section.Professor.Name.Last),
 				)
@@ -138,33 +82,43 @@ func updateSeatInfoDB(pool *pgxpool.Pool, coursesSeatInfo []*Course) error {
 // course seat info from UW Madison enrollment API. Uses scraped data to update Postgres database for
 // specified courses
 // Returns error on failure
-func CourseInfoUpdateDriver(pool *pgxpool.Pool, courseNames []string, batchSize int, delayTime int) error {
+func CourseInfoUpdateDriver(pool *pgxpool.Pool) error {
 
 	// get course codes from database for specified courses
-	courseCodes, err := getCourseCodesFromDB(pool, courseNames)
-	if err != nil {
-		return fmt.Errorf("Error with retrieving course info from database: %w", err)
+	//courseCodes, err := getCourseCodesFromDB(pool, courseNames)
+	//if err != nil {
+	//	return fmt.Errorf("Error with retrieving course info from database: %w", err)
+	//}
+
+	//// batch course IDs
+	//batches := batchCourseIDs(courseCodes, batchSize)
+
+	//delay := time.Duration(delayTime) * time.Second
+
+	//// perform API scrape and DB upload in batches
+	//for i, courseIDBatch:= range batches {
+
+	//	coursesSeatInfo := courseInfoScrape(pool, courseIDBatch)
+
+	//	err = updateSeatInfoDB(pool, coursesSeatInfo)
+	//	if err != nil {
+	//		return fmt.Errorf ("Failed to update DB with course info: %w", err)
+	//	}
+
+	//	// delay next batch
+	//	if i < len(batches) - 1 {
+	//		time.Sleep(delay)
+	//	}
+	//}
+
+	// query API for all recently changed courses
+	if coursesSeatInfo, err := enrollalertquery.QueryRecentChanges(20, Term); err != nil {
+		return fmt.Errorf("Failed to query for recent course changes")
 	}
 
-	// batch course IDs
-	batches := batchCourseIDs(courseCodes, batchSize)
-
-	delay := time.Duration(delayTime) * time.Second
-
-	// perform API scrape and DB upload in batches
-	for i, courseIDBatch:= range batches {
-
-		coursesSeatInfo := courseInfoScrape(pool, courseIDBatch)
-
-		err = updateSeatInfoDB(pool, coursesSeatInfo)
-		if err != nil {
-			return fmt.Errorf ("Failed to update DB with course info: %w", err)
-		}
-
-		// delay next batch
-		if i < len(batches) - 1 {
-			time.Sleep(delay)
-		}
+	// update seat info in DB
+	if err := updateSeatInfoDB(pool, coursesSeatInfo); err != nil {
+		return fmt.Errorf("Failed to update DB with course info: %w", err)
 	}
 
 	log.Println("Uploaded seat info to DB")

@@ -133,7 +133,7 @@ func CourseInfoUpdateDriver(pool *pgxpool.Pool) error {
 	//}
 
 	// query API for all recently changed courses
-	coursesQuery, err := enrollalertquery.QueryRecentChanges(20, Term)
+	coursesQuery, err := enrollalertquery.QueryRecentChanges(100, 20, Term)
 	if err != nil {
 		return fmt.Errorf("Failed to query for recent course changes")
 	}

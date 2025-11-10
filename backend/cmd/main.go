@@ -22,7 +22,7 @@ func main() {
 	termFlag := flag.Int("term", 1264, "term number to load courses for")
 
 	// check for batch size (100 as default)
-	batchSize := flag.Int("batchsize", 100, "batch size of API calls")
+	//batchSize := flag.Int("batchsize", 100, "batch size of API calls")
 
 	flag.Parse()
 
@@ -52,15 +52,15 @@ func main() {
 	defer pool.Close()
 
 	// get course ids from existing courses table
-	courseIDs, err := enrollalert.GetAllCourseIDs(pool)
-	if err != nil {
-		log.Fatalf("Error during course ID retrieval: %v", err)
-	}
+	//courseIDs, err := enrollalert.GetAllCourseIDs(pool)
+	//if err != nil {
+	//	log.Fatalf("Error during course ID retrieval: %v", err)
+	//}
 
-	log.Printf("Course ID retrieval successful.")
+	//log.Printf("Course ID retrieval successful.")
 
 	// conduct course section info update
-	err = enrollalert.CourseInfoUpdateDriver(pool, courseIDs, *batchSize, 30)
+	err = enrollalert.CourseInfoUpdateDriver(pool)
 	if err != nil {
 		log.Fatalf("Error with course section info update: %v", err)
 	}

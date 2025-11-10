@@ -112,8 +112,43 @@ func CourseInfoUpdateDriver(pool *pgxpool.Pool) error {
 	//}
 
 	// query API for all recently changed courses
-	if coursesSeatInfo, err := enrollalertquery.QueryRecentChanges(20, Term); err != nil {
+	coursesQuery, err := enrollalertquery.QueryRecentChanges(20, Term)
+	if err != nil {
 		return fmt.Errorf("Failed to query for recent course changes")
+	}
+
+	var coursesSeatInfo []*Course
+	for _, queryCourse := range coursesQuery {
+		course := &Course{
+			EnrollmentPackages: make([]*EnrollmentPackage, 0, len(queryCourse.EnrollmentPackages)),
+			CourseTitle:        queryCourse.CourseTitle,
+		}
+		for _, queryPkg := range queryCourse.EnrollmentPackages {
+			pkg := &EnrollmentPackage{Sections: make([]Section, 0, len(queryPkg.Sections))}
+			for _, querySection := range queryPkg.Sections {
+				sec := Section{
+					CourseID:      querySection.CourseID,
+					CatalogNumber: querySection.CatalogNumber,
+					SectionNumber: querySection.SectionNumber,
+					ClassType:     querySection.ClassType,
+				}
+				sec.Subject.SubjectID = querySection.Subject.SubjectID
+				sec.Subject.ShortDesc = querySection.Subject.ShortDesc
+				sec.Professor.Name.First = querySection.Professor.Name.First
+				sec.Professor.Name.Last = querySection.Professor.Name.Last
+				if querySection.EnrollmentStatus != nil {
+					sec.EnrollmentStatus.Capacity = querySection.EnrollmentStatus.Capacity
+					sec.EnrollmentStatus.CurrentlyEnrolled = querySection.EnrollmentStatus.CurrentlyEnrolled
+					sec.EnrollmentStatus.OpenSeats = querySection.EnrollmentStatus.OpenSeats
+					sec.EnrollmentStatus.WaitlistOpenSpots = querySection.EnrollmentStatus.WaitlistCurrentSize
+					sec.EnrollmentStatus.WaitlistCapacity = querySection.EnrollmentStatus.WaitlistCapacity
+				}
+				pkg.Sections = append(pkg.Sections, sec)
+				fmt.Printf("Processing section:\nCourse ID: %s, Catalog Number: %s, Section Number: %s\nClass Type: %s, Short Desc: %s, Professor Name: %s\n", sec.CourseID, sec.CatalogNumber, sec.SectionNumber, sec.ClassType, sec.Subject.ShortDesc, sec.Professor.Name.Last)
+			}
+			course.EnrollmentPackages = append(course.EnrollmentPackages, pkg)
+		}
+		coursesSeatInfo = append(coursesSeatInfo, course)
 	}
 
 	// update seat info in DB

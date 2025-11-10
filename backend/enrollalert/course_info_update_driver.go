@@ -71,10 +71,9 @@ func updateSeatInfoDB(pool *pgxpool.Pool, coursesSeatInfo []*Course) error {
 				// fetch course_name and course_title from courses table and update course_sections
 				var courseName string
 				var courseTitle string
-				var courseStatus string
 				err = pool.QueryRow(context.Background(),
-					`SELECT course_name, course_title, status FROM public.courses WHERE course_id = $1 AND term = $2 LIMIT 1`,
-					section.CourseID, TermNum).Scan(&courseName, &courseTitle, &courseStatus)
+					`SELECT course_name, course_title FROM public.courses WHERE course_id = $1 AND term = $2 LIMIT 1`,
+					section.CourseID, TermNum).Scan(&courseName, &courseTitle)
 				if err != nil {
 					log.Printf("Could not find course row for course_id=%s term=%d: %v", section.CourseID, TermNum, err)
 				} else {
@@ -167,7 +166,7 @@ func CourseInfoUpdateDriver(pool *pgxpool.Pool) error {
 					sec.EnrollmentStatus.WaitlistCapacity = querySection.EnrollmentStatus.WaitlistCapacity
 				}
 				pkg.Sections = append(pkg.Sections, sec)
-				fmt.Printf("Processing section:\nCourse ID: %s, Catalog Number: %s, Section Number: %s\nClass Type: %s, Short Desc: %s, Professor Name: %s\n", sec.CourseID, sec.CatalogNumber, sec.SectionNumber, sec.ClassType, sec.Subject.ShortDesc, sec.Professor.Name.Last)
+				//fmt.Printf("Processing section:\nCourse ID: %s, Catalog Number: %s, Section Number: %s\nClass Type: %s, Short Desc: %s, Professor Name: %s\n", sec.CourseID, sec.CatalogNumber, sec.SectionNumber, sec.ClassType, sec.Subject.ShortDesc, sec.Professor.Name.Last)
 			}
 			course.EnrollmentPackages = append(course.EnrollmentPackages, pkg)
 		}

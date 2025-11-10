@@ -117,6 +117,9 @@ export async function getFilteredCourses<R extends QueryResultRow = Course>({
   const values: (string|number|null|boolean)[] = []
   const whereClauses: string[] = [`cs.section_type = 'LEC'`]
   let orderByClause = ''
+  
+  // require non-empty course title (usually empty course titles are grad school courses that don't get captured in initial run)
+  whereClauses.push("TRIM(COALESCE(cs.course_title, '')) <> ''")
 
   if (search) {
     values.push(`%${search.toLowerCase()}%`)

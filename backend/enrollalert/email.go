@@ -3,6 +3,8 @@ package enrollalert
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/sesv2"
@@ -10,8 +12,8 @@ import (
 )
 
 type EmailClient struct {
-	svc  *sesv2.Client
-	from string
+	svc           *sesv2.Client
+	from          string
 	alertTemplate string
 }
 
@@ -23,12 +25,19 @@ func NewEmailClient(ctx context.Context, from string, alertTemplate string) (*Em
 		return nil, err
 	}
 
-	return &EmailClient{svc: sesv2.NewFromConfig(cfg), from: from, alertTemplate: alertTemplate,}, nil
+	return &EmailClient{svc: sesv2.NewFromConfig(cfg), from: from, alertTemplate: alertTemplate}, nil
 }
 
 // sends alert email to user using SES client
 func (c *EmailClient) SendSeatAlert(to string, data map[string]interface{}) error {
-	
+
+	if to == "" {
+		return fmt.Errorf("empty recipient")
+	}
+	if c.alertTemplate == "" {
+		return fmt.Errorf("empty alert template name")
+	}
+
 	payload, _ := json.Marshal(data)
 
 	_, err := c.svc.SendEmail(context.TODO(), &sesv2.SendEmailInput{
@@ -44,4 +53,3 @@ func (c *EmailClient) SendSeatAlert(to string, data map[string]interface{}) erro
 
 	return err
 }
-

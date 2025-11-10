@@ -4,18 +4,19 @@ import (
 	"log"
 
 	"context"
+
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type alertRow struct {
-	userID       int
-	email        string
-	courseID     string
-	courseName   string
-	sectionNum   string
-	alertType    string
+	userID        int
+	email         string
+	courseID      string
+	courseName    string
+	sectionNum    string
+	alertType     string
 	seatThreshold *int
-	openSeats    int
+	openSeats     int
 }
 
 // NotifyMatchingAlerts Looks at newly updated courses and sends email alerts to users if the courses
@@ -40,8 +41,8 @@ func NotifyMatchingAlerts(ctx context.Context, pool *pgxpool.Pool, mail *EmailCl
 		    AND cs.section_num = uc.section_num
 		    AND cs.term        = $1
 		WHERE (
-			  uc.alert_type = 'any'      AND cs.open_seats > 0
-		   OR uc.alert_type = 'threshold' AND cs.open_seats <= uc.seat_threshold
+			  uc.alert_type = 'any' AND cs.course_status = 'OPEN'
+		    OR uc.alert_type = 'threshold' AND cs.open_seats <= uc.seat_threshold
 		)
 	`, term)
 
@@ -52,7 +53,7 @@ func NotifyMatchingAlerts(ctx context.Context, pool *pgxpool.Pool, mail *EmailCl
 
 	var count int
 	_ = pool.QueryRow(ctx, `SELECT COUNT(*) FROM course_sections WHERE term=$1`, term).
-						Scan(&count)
+		Scan(&count)
 	log.Printf("DEBUG  rows in course_sections for term=%d → %d", term, count)
 
 	for rows.Next() {
@@ -97,4 +98,3 @@ func NotifyMatchingAlerts(ctx context.Context, pool *pgxpool.Pool, mail *EmailCl
 	}
 	return rows.Err()
 }
-

@@ -99,14 +99,13 @@ func updateSeatInfoDB(pool *pgxpool.Pool, coursesSeatInfo []*Course) error {
 	return nil
 }
 
-// CourseInfoUpdateDriver Retrieves course/subject ID from Postgres database and uses info to scrape
-// course seat info from UW Madison enrollment API. Uses scraped data to update Postgres database for
+// CourseInfoUpdateDriver Scraper recent changes in course enrollment info from UW Madison enrollment API. Uses scraped data to update Postgres database for
 // specified courses
 // Returns error on failure
 func CourseInfoUpdateDriver(pool *pgxpool.Pool) error {
 
-	// query API for all recently changed courses
-	coursesQuery, err := enrollalertquery.QueryRecentChanges(100, 12, Term)
+	// query API for all recently changed courses in last 12 min
+	coursesQuery, err := enrollalertquery.QueryRecentChanges(200, 12, Term)
 	if err != nil {
 		return fmt.Errorf("Failed to query for recent course changes")
 	}

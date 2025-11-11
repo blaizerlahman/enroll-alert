@@ -3,14 +3,12 @@ package main
 import (
 	"context"
 	"flag"
-	"fmt"
 	"time"
 	"log"
 	"enroll-alert/enrollalert"
 	"os"
 	"strconv"
 	"sync"
-	"github.com/blaizerlahman/enroll-alert-query/enrollalertquery"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -18,7 +16,7 @@ import (
 var (
 	initFlag      = flag.Bool("init", false, "")
 	countFlag     = flag.Int("count", 5666, "")
-	termFlag      = flag.Int("term", 1262, "")
+	termFlag      = flag.Int("term", 1264, "")
 	batchSizeFlag = flag.Int("batchsize", 50, "")
 	delayTimeFlag = flag.Int("delay", 10, "")
 	parseOnce     sync.Once
@@ -75,8 +73,6 @@ func run(ctx context.Context, config Config) error {
 	enrollalert.TermNum = config.term
 	enrollalert.Term = strconv.Itoa(config.term)
 
-	timeStart := time.Now()
-
 	// run initial DB loading if specified
 	if config.init {
 		return enrollalert.InitialDriver(config.count)
@@ -114,6 +110,7 @@ func handler(ctx context.Context) error {
 func main() {
 
 	if os.Getenv("AWS_LAMBDA_FUNCTION_NAME") != "" {
+		timeStart := time.Now()
 		lambda.Start(handler)
 		log.Printf("Course updating done in %s", time.Since(timeStart))
 		return

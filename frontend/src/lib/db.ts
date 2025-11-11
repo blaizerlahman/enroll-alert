@@ -66,7 +66,8 @@ export async function getCourseSubsections(courseId: string) {
         COALESCE(prof_name, 'Unknown') AS professor,
         capacity, enrolled, open_seats,
         waitlist_capacity, waitlist_open_spots,
-        course_status
+        course_status,
+        term
       FROM course_sections
       WHERE course_id = $1 AND section_type = 'LEC' AND term = $2
     ),
@@ -77,7 +78,8 @@ export async function getCourseSubsections(courseId: string) {
         capacity, enrolled, open_seats,
         waitlist_capacity, waitlist_open_spots,
         course_id,
-        course_status
+        course_status,
+        term
       FROM course_sections
       WHERE course_id = $1 AND section_type IN ('DIS','LAB','SEM') and term = $2
     )
@@ -90,11 +92,11 @@ export async function getCourseSubsections(courseId: string) {
       d.open_seats    AS dis_open_seats,
       d.waitlist_capacity     AS dis_waitlist_capacity,
       d.waitlist_open_spots   AS dis_waitlist_open_spots,
-      d.course_status         AS dis_course_status
+      d.course_status         AS dis_course_status,
+      d.term                  AS dis_term
     FROM lec l
     LEFT JOIN dis d
-      ON d.dis_num_int BETWEEN 300 + (l.lecture_num_int - 1) * 20 + 1
-                        AND     300 +  l.lecture_num_int       * 20
+      ON d.course_id = l.course_id AND d.term = l.term
     ORDER BY l.lecture_num, d.section_num;
   `
   const { rows } = await query(sql, [courseId, CURR_TERM])

@@ -17,15 +17,15 @@ import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 import { auth } from '@/lib/firebase'
 
-export type Subsection = { section_num: string; open_seats: number }
+export type Subsection = { section_num: string; course_status?: 'OPEN'|'WAITLISTED'|'CLOSED' }
 
 type Props = {
   open: boolean
   onOpenChange: (b: boolean) => void
   courseId: string
   sectionNum: string
-  openSeats: number
   subsections?: Subsection[]
+  lectureStatus?: 'OPEN'|'WAITLISTED'|'CLOSED'
 }
 
 export default function NotifyPopup({
@@ -33,86 +33,54 @@ export default function NotifyPopup({
   onOpenChange,
   courseId,
   sectionNum,
-  openSeats,
   subsections = [],
+  lectureStatus,
 }: Props) {
-  const closedSubs  = subsections.filter(s => s.open_seats === 0)
-  const alreadyOpen = subsections.filter(s => s.open_seats > 0)
-  const hasClosed   = closedSubs.length  > 0
-  const hasOpen     = alreadyOpen.length > 0
+  const closedSubs  = subsections.filter(s => s.course_status === 'CLOSED')
+  const hasClosed   = closedSubs.length > 0
 
-  const [mode,        setMode]      = useState<'any' | 'threshold'>('any')
-  const [threshold,   setThreshold] = useState('1')
+  const [mode, setMode] = useState<'any'>('any')
   const [multiSubs,   setMultiSubs] = useState<string[]>([])
-  const [singleSub,   setSingleSub] = useState('')
-
   const allChecked = multiSubs.length === closedSubs.length && hasClosed
-  const chosenOpenSeats =
-    alreadyOpen.find(s => s.section_num === singleSub)?.open_seats ?? 0
 
   useEffect(() => {
     if (open) {
-      setMode(hasClosed ? 'any' : 'threshold')
-      setThreshold('1')
       setMultiSubs([])
-      setSingleSub('')
+      setMode('any')
     }
-  }, [open, hasClosed])
-
-  useEffect(() => {
-    if (!hasClosed && !hasOpen) return
-    if (mode === 'any' && !hasClosed)     setMode('threshold')
-    if (mode === 'threshold' && !hasOpen) setMode('any')
-  }, [mode, hasClosed, hasOpen])
-
-  const multiBtn        = multiSubs.length ? multiSubs.join(', ') : 'Select sections'
-  const singleBtn       = singleSub || 'Select section'
-  const singleBtnMobile = singleSub || 'Section'
-
-  const Line = ({ children }: { children: React.ReactNode }) => (
-    <span className="inline-flex flex-nowrap items-center gap-2">
-      {children}
-    </span>
-  )
+  }, [open])
 
   const submit = async () => {
     if (!auth.currentUser) {
       toast.error('You must be signed in to save alerts.')
       return
     }
-    if (mode === 'any' && subsections.length > 0 && multiSubs.length === 0) {
-      toast.error('Select at least one subsection.')
-      return
-    }
-    if (mode === 'threshold') {
-      if (subsections.length > 0) {
-        if (!singleSub) { toast.error('Select a subsection.'); return }
-        if (+threshold > chosenOpenSeats) {
-          toast.error('Threshold exceeds current open seats.'); return
-        }
-      } else if (+threshold > openSeats) {
-        toast.error('Threshold exceeds current open seats.'); return
+
+    if (subsections.length === 0) {
+      if (lectureStatus !== 'CLOSED') {
+        toast.error('This section must be CLOSED to save an alert.')
+        return
+      }
+    } else {
+      if (multiSubs.length === 0) {
+        toast.error('Select at least one closed subsection.')
+        return
       }
     }
 
     try {
       const token = await auth.currentUser.getIdToken()
 
-      // create request body that contains section alert info
       const body  = {
         token,
         courseId,
         sectionNum:
           subsections.length === 0
             ? [sectionNum]
-            : mode === 'any'
-            ? multiSubs
-            : [singleSub],
-        alertType:     mode,
-        seatThreshold: mode === 'threshold' ? +threshold : null,
+            : multiSubs,
+        alertType:     'any',
       }
 
-      // get resonse body from notifications API call
       const response  = await fetch('/api/notifications', {
         method: 'POST',
         body:   JSON.stringify(body),
@@ -121,13 +89,10 @@ export default function NotifyPopup({
 
       const data = await response.json()
 
-      // return success if alert successfully saved or error otherwise
       if (response.ok) {
         toast.success('Alert saved!')
         onOpenChange(false)
-      } else if (response.status === 409) {
-        toast.error(data.error)
-      } else if (response.status === 410) {
+      } else if (response.status === 409 || response.status === 410) {
         toast.error(data.error)
       } else {
         throw new Error()
@@ -146,53 +111,37 @@ export default function NotifyPopup({
 
         <RadioGroup
           value={mode}
-          onValueChange={v => setMode(v as 'any' | 'threshold')}
+          onValueChange={() => setMode('any')}
           className="space-y-4"
         >
           {subsections.length === 0 ? (
-            openSeats === 0 ? (
+            lectureStatus === 'CLOSED' ? (
               <label className="inline-flex items-center gap-2">
                 <RadioGroupItem id="any-lecture" value="any" />
-                When any seats open in&nbsp;{sectionNum}
+                When any seats open in&nbsp;<strong>{sectionNum}</strong>
               </label>
             ) : (
-              <label className="inline-flex items-center gap-2">
-                <RadioGroupItem id="th-lecture" value="threshold" />
-                <Line>
-                  When&nbsp;≤
-                  <Input
-                    type="number"
-                    min="1"
-                    max={openSeats}
-                    value={threshold}
-                    onChange={e => setThreshold(e.target.value)}
-                    className="w-16"
-                    disabled={mode !== 'threshold'}
-                  />
-                  seats open in&nbsp;{sectionNum}
-                </Line>
-              </label>
+              <p className="text-center py-6 text-sm text-muted-foreground">
+                Alerts can only be saved when the section is currently <strong>CLOSED</strong>. This section is currently <strong>{lectureStatus ?? 'UNKNOWN'}</strong>.
+              </p>
             )
           ) : (
             <>
-              {hasClosed && (
+              {hasClosed ? (
                 <label className="flex flex-col sm:flex-row items-center gap-2 text-center">
-                  <Line>
+                  <div className="inline-flex items-center gap-2">
                     <RadioGroupItem id="any" value="any" />
                     When any seats open in
-                  </Line>
+                  </div>
 
                   <Popover>
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
                         size="sm"
-                        className="mx-auto sm:mx-0 mt-2 sm:mt-0 w-32 sm:w-40 truncate text-left"
+                        className="mx-auto sm:mx-0 mt-2 sm:mt-0 w-36 truncate text-left"
                       >
-                        <span className="sm:hidden">
-                          {multiSubs.length ? multiBtn : 'Sections'}
-                        </span>
-                        <span className="hidden sm:inline">{multiBtn}</span>
+                        {multiSubs.length ? multiSubs.join(', ') : 'Select sections'}
                       </Button>
                     </PopoverTrigger>
                     <PopoverContent className="w-[220px] p-0">
@@ -209,7 +158,7 @@ export default function NotifyPopup({
                               }
                             />
                             <Label htmlFor="all-sections" className="font-semibold">
-                              All sections
+                              All closed sections
                             </Label>
                           </CommandItem>
                           {closedSubs.map(s => (
@@ -233,52 +182,10 @@ export default function NotifyPopup({
                     </PopoverContent>
                   </Popover>
                 </label>
-              )}
-
-              {hasOpen && (
-                <label className="flex flex-col sm:flex-row items-center gap-2 text-center">
-                  <Line>
-                    <RadioGroupItem id="th" value="threshold" />
-                    When&nbsp;≤
-                    <Input
-                      type="number"
-                      min="1"
-                      max={chosenOpenSeats || 1}
-                      value={threshold}
-                      onChange={e => setThreshold(e.target.value)}
-                      className="w-16"
-                      disabled={mode !== 'threshold'}
-                    />
-                    seats open in
-                  </Line>
-
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="mx-auto sm:mx-0 mt-2 sm:mt-0 w-32 sm:w-40 truncate text-left"
-                      >
-                        <span className="sm:hidden">{singleBtnMobile}</span>
-                        <span className="hidden sm:inline">{singleBtn}</span>
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[200px] p-0">
-                      <Command>
-                        <CommandList>
-                          {alreadyOpen.map(s => (
-                            <CommandItem
-                              key={s.section_num}
-                              onSelect={() => setSingleSub(s.section_num)}
-                            >
-                              {s.section_num} ({s.open_seats})
-                            </CommandItem>
-                          ))}
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                </label>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  There are no closed subsections to watch for this lecture.
+                </p>
               )}
             </>
           )}
@@ -286,8 +193,12 @@ export default function NotifyPopup({
 
         <Button
           variant="outline"
-          className="w-full sm:w-60 mx-auto block border-2 border-red-500 text-red-500 hover:bg-red-500 hover:text-white"
+          className="w-full sm:w-60 mx-auto block border-2 border-red-500 text-red-500 hover:bg-red-500 hover:text-white mt-6"
           onClick={submit}
+          disabled={
+            (subsections.length === 0 && lectureStatus !== 'CLOSED') ||
+            (subsections.length > 0 && multiSubs.length === 0)
+          }
         >
           Save alert
         </Button>
@@ -295,4 +206,3 @@ export default function NotifyPopup({
     </Dialog>
   )
 }
-

@@ -1,25 +1,41 @@
 import { NextResponse } from 'next/server'
 import { getAdminAuth } from '@/lib/firebase-admin'
-import { query } from '@/lib/db'
+import { query, CURR_TERM } from '@/lib/db'
 import { IdRow, CountRow, ExistsRow } from '@/lib/types'
 
 export async function POST(req: Request) {
   try {
 
     const adminAuth = getAdminAuth()
-    const { token, courseId, sectionNum, alertType, seatThreshold } = await req.json()
+    const { token, courseId, sectionNum, alertType } = await req.json()
     const decoded = await adminAuth.verifyIdToken(token, true)
     const firebaseUid = decoded.uid
     const email = decoded.email ?? null
 
     // validate inputs
     if (
-      !['any', 'threshold'].includes(alertType) ||
-      (alertType === 'threshold' && (!seatThreshold || seatThreshold < 1)) ||
+      alertType !== 'any' ||
       !Array.isArray(sectionNum) ||
       sectionNum.length === 0
     ) {
       return NextResponse.json({ error: 'Bad request' }, { status: 400 })
+    }
+
+    // confirm that each selected section is currently closed
+    const closedCheck = await query<{ count: number }>(
+      `
+      SELECT COUNT(*)::int AS count
+      FROM course_sections
+      WHERE course_id = $1 AND term = $2 AND section_num = ANY($3::text[]) AND course_status = 'CLOSED'
+      `,
+      [courseId, CURR_TERM, sectionNum]
+    )
+    const closedCount = closedCheck.rows[0].count
+    if (closedCount !== sectionNum.length) {
+      return NextResponse.json(
+        { error: 'Alerts can only be created for sections that are currently CLOSED.' },
+        { status: 409 }
+      )
     }
 
     // upsert user and get their id
@@ -64,10 +80,9 @@ export async function POST(req: Request) {
             AND course_id     = $2
             AND section_num   = $3
             AND alert_type    = $4
-            AND (seat_threshold IS NOT DISTINCT FROM $5)
         ) AS exists
         `,
-        [userId, courseId, sec, alertType, seatThreshold ?? null]
+        [userId, courseId, sec, alertType]
       )
       if (existsResult.rows[0].exists) {
         return NextResponse.json(
@@ -80,10 +95,10 @@ export async function POST(req: Request) {
       await query(
         `
         INSERT INTO user_courses
-               (user_id, course_id, section_num, alert_type, seat_threshold)
-        VALUES ($1, $2, $3, $4, $5)
+               (user_id, course_id, section_num, alert_type)
+        VALUES ($1, $2, $3, $4)
         `,
-        [userId, courseId, sec, alertType, seatThreshold ?? null]
+        [userId, courseId, sec, alertType]
       )
     }
 

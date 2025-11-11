@@ -11,6 +11,7 @@ interface Row {
   open_seats: number
   waitlist_capacity: number
   waitlist_open_spots: number
+  course_status: string
   dis_section_num: string | null
   dis_section_type: string | null
   dis_capacity: number | null
@@ -18,6 +19,7 @@ interface Row {
   dis_open_seats: number | null
   dis_waitlist_capacity: number | null
   dis_waitlist_open_spots: number | null
+  dis_course_status: string | null
 }
 
 type Discussion = {
@@ -28,6 +30,7 @@ type Discussion = {
   open_seats: number
   waitlist_capacity: number
   waitlist_open_spots: number
+  course_status: string
 }
 
 type Lecture = {
@@ -38,6 +41,7 @@ type Lecture = {
   open_seats: number
   waitlist_capacity: number
   waitlist_open_spots: number
+  course_status: string
   discussions: Discussion[]
 }
 
@@ -62,6 +66,7 @@ export async function GET(
           open_seats: r.open_seats,
           waitlist_capacity: r.waitlist_capacity,
           waitlist_open_spots: r.waitlist_open_spots,
+          course_status: r.course_status,
           discussions: [],
         })
       }
@@ -76,6 +81,7 @@ export async function GET(
           open_seats: r.dis_open_seats!,
           waitlist_capacity: r.dis_waitlist_capacity!,
           waitlist_open_spots: r.dis_waitlist_open_spots!,
+          course_status: r.dis_course_status ?? 'CLOSED',
         })
       }
     })

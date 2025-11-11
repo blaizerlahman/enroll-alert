@@ -47,11 +47,10 @@ export async function GET(req: Request) {
       ),
       agg AS (
         SELECT course_id,
-               SUM(open_seats)         AS total_open,
-               SUM(enrolled)           AS total_enr,
-               SUM(capacity)           AS total_cap,
-               SUM(waitlist_open_spots) AS total_wl_open,
-               SUM(waitlist_capacity)   AS total_wl_cap
+               COUNT(*) AS total_sections,
+               SUM(CASE WHEN course_status = 'OPEN' THEN 1 ELSE 0 END) AS open_sections,
+               SUM(CASE WHEN course_status = 'WAITLISTED' THEN 1 ELSE 0 END) AS waitlisted_sections,
+               SUM(CASE WHEN course_status = 'CLOSED' THEN 1 ELSE 0 END) AS closed_sections
         FROM secs
         WHERE section_type = 'LEC'
         GROUP BY course_id
@@ -60,11 +59,15 @@ export async function GET(req: Request) {
         s.course_id,
         s.course_name,
         s.course_title,
-        ag.total_open,
-        ag.total_enr,
-        ag.total_cap,
-        ag.total_wl_open,
-        ag.total_wl_cap,
+        ag.open_sections,
+        ag.waitlisted_sections,
+        ag.closed_sections,
+        ag.total_sections,
+        CASE
+          WHEN ag.open_sections > 0 THEN 'OPEN'
+          WHEN ag.waitlisted_sections > 0 THEN 'WAITLISTED'
+          ELSE 'CLOSED'
+        END AS course_status,
         json_agg(
           json_build_object(
             'section_num', a.section_num,
@@ -74,6 +77,7 @@ export async function GET(req: Request) {
             'enrolled',     s.enrolled,
             'waitlist_capacity',     s.waitlist_capacity,
             'waitlist_open_spots',   s.waitlist_open_spots,
+            'course_status', s.course_status,
             'alert_type',   a.alert_type,
             'seat_threshold',a.seat_threshold
           ) ORDER BY s.section_type, s.section_num
@@ -85,8 +89,7 @@ export async function GET(req: Request) {
         s.course_id,
         s.course_name,
         s.course_title,
-        ag.total_open, ag.total_enr, ag.total_cap,
-        ag.total_wl_open, ag.total_wl_cap
+        ag.open_sections, ag.waitlisted_sections, ag.closed_sections, ag.total_sections
       ORDER BY s.course_name
       `,
       [userId, CURR_TERM]

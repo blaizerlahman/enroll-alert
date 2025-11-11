@@ -65,7 +65,8 @@ export async function getCourseSubsections(courseId: string) {
         course_id,
         COALESCE(prof_name, 'Unknown') AS professor,
         capacity, enrolled, open_seats,
-        waitlist_capacity, waitlist_open_spots
+        waitlist_capacity, waitlist_open_spots,
+        course_status
       FROM course_sections
       WHERE course_id = $1 AND section_type = 'LEC' AND term = $2
     ),
@@ -75,19 +76,21 @@ export async function getCourseSubsections(courseId: string) {
         section_num, section_type,
         capacity, enrolled, open_seats,
         waitlist_capacity, waitlist_open_spots,
-        course_id
+        course_id,
+        course_status
       FROM course_sections
       WHERE course_id = $1 AND section_type IN ('DIS','LAB','SEM') and term = $2
     )
     SELECT
-      l.*,                                  
-      d.section_num   AS dis_section_num,    
+      l.*,
+      d.section_num   AS dis_section_num,
       d.section_type  AS dis_section_type,
       d.capacity      AS dis_capacity,
       d.enrolled      AS dis_enrolled,
       d.open_seats    AS dis_open_seats,
       d.waitlist_capacity     AS dis_waitlist_capacity,
-      d.waitlist_open_spots   AS dis_waitlist_open_spots
+      d.waitlist_open_spots   AS dis_waitlist_open_spots,
+      d.course_status         AS dis_course_status
     FROM lec l
     LEFT JOIN dis d
       ON d.dis_num_int BETWEEN 300 + (l.lecture_num_int - 1) * 20 + 1
@@ -172,6 +175,10 @@ export async function getFilteredCourses<R extends QueryResultRow = Course>({
       SUM(cs.enrolled) AS total_enrolled,
       SUM(cs.waitlist_capacity) AS total_waitlist_capacity,
       SUM(cs.waitlist_open_spots) AS total_waitlist_open,
+      COUNT(*) AS total_sections_count,
+      SUM(CASE WHEN cs.course_status = 'OPEN' THEN 1 ELSE 0 END) AS open_sections_count,
+      SUM(CASE WHEN cs.course_status = 'WAITLISTED' THEN 1 ELSE 0 END) AS waitlisted_sections_count,
+      SUM(CASE WHEN cs.course_status = 'CLOSED' THEN 1 ELSE 0 END) AS closed_sections_count,
       EXISTS (
         SELECT 1 FROM course_sections s2
         WHERE s2.course_id = cs.course_id AND s2.section_type IN ('DIS', 'LAB') AND s2.term = cs.term
@@ -180,7 +187,12 @@ export async function getFilteredCourses<R extends QueryResultRow = Course>({
         SELECT cb.breadth_description
         FROM course_breadths cb
         WHERE cb.course_id = cs.course_id AND cb.breadth_description IS NOT NULL
-      ) AS breadths
+      ) AS breadths,
+      CASE
+        WHEN SUM(CASE WHEN cs.course_status = 'OPEN' THEN 1 ELSE 0 END) > 0 THEN 'OPEN'
+        WHEN SUM(CASE WHEN cs.course_status = 'WAITLISTED' THEN 1 ELSE 0 END) > 0 THEN 'WAITLISTED'
+        ELSE 'CLOSED'
+      END AS course_status
     FROM course_sections cs
     WHERE ${whereClauses.join(' AND ')}
     GROUP BY cs.course_id, cs.course_name, cs.subject_id, cs.course_title, cs.term

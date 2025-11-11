@@ -1,4 +1,3 @@
-// app/my-courses/page.tsx
 'use client'
 
 import { useEffect, useState } from 'react'
@@ -26,6 +25,7 @@ type Alert = {
   enrolled: number
   alert_type: 'any' | 'threshold'
   seat_threshold: number | null
+  course_status?: 'OPEN' | 'WAITLISTED' | 'CLOSED'
 }
 
 type MyCourse = {
@@ -137,11 +137,6 @@ export default function MyCoursesPage() {
             </CardHeader>
 
             <CardContent className="space-y-3">
-              <p className="text-sm">
-                Enrolled {course.total_enr}/{course.total_cap} · Open{' '}
-                {course.total_open}
-              </p>
-
               <ul className="space-y-2">
                 {course.alerts.map((a) => (
                   <li
@@ -149,12 +144,19 @@ export default function MyCoursesPage() {
                     className="flex items-center justify-between"
                   >
                     <div>
-                      {a.section_type} {a.section_num} — Seats open:{' '}
-                      <strong>{a.open_seats}</strong> · Alert type:{' '}
+                      {a.section_type} {a.section_num} — Status:{' '}
                       <strong>
-                        {a.alert_type === 'any'
-                          ? 'any seat'
-                          : `≤ ${a.seat_threshold}`}
+                        {a.course_status
+                          ? (a.course_status === 'OPEN'
+                              ? 'Open'
+                              : a.course_status === 'WAITLISTED'
+                              ? 'Waitlisted'
+                              : 'Closed')
+                          : 'Unknown'}
+                      </strong>
+                      {' · '}Alert type:{' '}
+                      <strong>
+                        {a.alert_type === 'any' ? 'any seat' : `≤ ${a.seat_threshold}`}
                       </strong>
                     </div>
                     <Button
@@ -201,4 +203,3 @@ export default function MyCoursesPage() {
     </>
   )
 }
-

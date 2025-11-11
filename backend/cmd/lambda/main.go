@@ -4,21 +4,16 @@ import (
 	"context"
 	"flag"
 	"fmt"
-
-	//"log"
+	"time"
+	"log"
 	"enroll-alert/enrollalert"
 	"os"
 	"strconv"
 	"sync"
-
 	"github.com/blaizerlahman/enroll-alert-query/enrollalertquery"
-
-	//"github.com/aws/aws-lambda-go/lambda"
+	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
-
-// junk to allow compile, REMOVE IN PROD
-var _ = lambda.Start
 
 var (
 	initFlag      = flag.Bool("init", false, "")
@@ -80,6 +75,8 @@ func run(ctx context.Context, config Config) error {
 	enrollalert.TermNum = config.term
 	enrollalert.Term = strconv.Itoa(config.term)
 
+	timeStart := time.Now()
+
 	// run initial DB loading if specified
 	if config.init {
 		return enrollalert.InitialDriver(config.count)
@@ -91,12 +88,6 @@ func run(ctx context.Context, config Config) error {
 		return err
 	}
 	defer pool.Close()
-
-	// grab course IDs from DB
-	//ids, err := enrollalert.GetAllCourseIDs(pool)
-	//if err != nil {
-	//return err
-	//}
 
 	// scrape API for course section info and update DB
 	if err := enrollalert.CourseInfoUpdateDriver(pool); err != nil {
@@ -124,6 +115,7 @@ func main() {
 
 	if os.Getenv("AWS_LAMBDA_FUNCTION_NAME") != "" {
 		lambda.Start(handler)
+		log.Printf("Course updating done in %s", time.Since(timeStart))
 		return
 	}
 	if err := run(context.Background(), loadConfig()); err != nil {

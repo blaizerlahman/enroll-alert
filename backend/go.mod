@@ -2,8 +2,6 @@ module enroll-alert
 
 go 1.24.3
 
-replace github.com/blaizerlahman/enroll-alert-query => ../../enroll-alert-query
-
 require (
 	github.com/aws/aws-lambda-go v1.49.0
 	github.com/aws/aws-sdk-go-v2 v1.36.5

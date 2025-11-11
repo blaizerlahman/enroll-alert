@@ -54,6 +54,9 @@ export async function GET(
     const rows = (await getCourseSubsections(courseId)) as Row[]
 
     const map = new Map<string, Lecture>()
+    
+    // avoiding duplicate subsections
+    const seenDiscussions = new Set<string>()
 
     rows.forEach((r) => {
       // ensure one lecture per lecture_num 
@@ -73,16 +76,19 @@ export async function GET(
 
       // push child discussion/lab/sem if present 
       if (r.dis_section_num) {
-        map.get(r.lecture_num)!.discussions.push({
-          section_num: r.dis_section_num,
-          section_type: r.dis_section_type!,
-          capacity: r.dis_capacity!,
-          enrolled: r.dis_enrolled!,
-          open_seats: r.dis_open_seats!,
-          waitlist_capacity: r.dis_waitlist_capacity!,
-          waitlist_open_spots: r.dis_waitlist_open_spots!,
-          course_status: r.dis_course_status ?? 'CLOSED',
-        })
+        if (!seenDiscussions.has(r.dis_section_num)) {
+          seenDiscussions.add(r.dis_section_num)
+          map.get(r.lecture_num)!.discussions.push({
+            section_num: r.dis_section_num,
+            section_type: r.dis_section_type!,
+            capacity: r.dis_capacity!,
+            enrolled: r.dis_enrolled!,
+            open_seats: r.dis_open_seats!,
+            waitlist_capacity: r.dis_waitlist_capacity!,
+            waitlist_open_spots: r.dis_waitlist_open_spots!,
+            course_status: r.dis_course_status ?? 'CLOSED',
+          })
+        }
       }
     })
 

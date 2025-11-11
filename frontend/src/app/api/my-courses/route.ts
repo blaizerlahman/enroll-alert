@@ -3,8 +3,6 @@ import { getAdminAuth } from '@/lib/firebase-admin'
 import { query, CURR_TERM } from '@/lib/db'
 import { IdRow } from '@/lib/types'
 
-const TERM = parseInt(process.env.NEXT_PUBLIC_TERM ?? '1262', 10)
-
 export async function GET(req: Request) {
   try {
 

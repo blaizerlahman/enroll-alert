@@ -105,35 +105,8 @@ func updateSeatInfoDB(pool *pgxpool.Pool, coursesSeatInfo []*Course) error {
 // Returns error on failure
 func CourseInfoUpdateDriver(pool *pgxpool.Pool) error {
 
-	// get course codes from database for specified courses
-	//courseCodes, err := getCourseCodesFromDB(pool, courseNames)
-	//if err != nil {
-	//	return fmt.Errorf("Error with retrieving course info from database: %w", err)
-	//}
-
-	//// batch course IDs
-	//batches := batchCourseIDs(courseCodes, batchSize)
-
-	//delay := time.Duration(delayTime) * time.Second
-
-	//// perform API scrape and DB upload in batches
-	//for i, courseIDBatch:= range batches {
-
-	//	coursesSeatInfo := courseInfoScrape(pool, courseIDBatch)
-
-	//	err = updateSeatInfoDB(pool, coursesSeatInfo)
-	//	if err != nil {
-	//		return fmt.Errorf ("Failed to update DB with course info: %w", err)
-	//	}
-
-	//	// delay next batch
-	//	if i < len(batches) - 1 {
-	//		time.Sleep(delay)
-	//	}
-	//}
-
 	// query API for all recently changed courses
-	coursesQuery, err := enrollalertquery.QueryRecentChanges(100, 15, Term)
+	coursesQuery, err := enrollalertquery.QueryRecentChanges(100, 10, Term)
 	if err != nil {
 		return fmt.Errorf("Failed to query for recent course changes")
 	}

@@ -106,7 +106,7 @@ func updateSeatInfoDB(pool *pgxpool.Pool, coursesSeatInfo []*Course) error {
 func CourseInfoUpdateDriver(pool *pgxpool.Pool) error {
 
 	// query API for all recently changed courses
-	coursesQuery, err := enrollalertquery.QueryRecentChanges(100, 10, Term)
+	coursesQuery, err := enrollalertquery.QueryRecentChanges(100, 12, Term)
 	if err != nil {
 		return fmt.Errorf("Failed to query for recent course changes")
 	}

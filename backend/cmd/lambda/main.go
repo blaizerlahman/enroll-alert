@@ -3,12 +3,12 @@ package main
 import (
 	"context"
 	"flag"
+	"time"
 	"log"
+	"enroll-alert/enrollalert"
 	"os"
 	"strconv"
 	"sync"
-	"enroll-alert/enrollalert"
-	"github.com/blaizerlahman/enroll-alert-priv"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -16,19 +16,19 @@ import (
 var (
 	initFlag      = flag.Bool("init", false, "")
 	countFlag     = flag.Int("count", 5666, "")
-	termFlag      = flag.Int("term", 1262, "")
+	termFlag      = flag.Int("term", 1264, "")
 	batchSizeFlag = flag.Int("batchsize", 50, "")
 	delayTimeFlag = flag.Int("delay", 10, "")
 	parseOnce     sync.Once
 )
 
 type Config struct {
-	init      bool
-	count     int
-	term      int
-	batchSize int
-	delayTime int
-	postgresURL     string
+	init        bool
+	count       int
+	term        int
+	batchSize   int
+	delayTime   int
+	postgresURL string
 }
 
 // envBool Parse boolean flag for given input.
@@ -56,12 +56,12 @@ func envInt(search string, defaultFlag int) int {
 func loadConfig() Config {
 	parseOnce.Do(flag.Parse)
 	return Config{
-		init:      envBool("INIT", *initFlag),
-		count:     envInt("COUNT", *countFlag),
-		term:      envInt("TERM", *termFlag),
-		batchSize: envInt("BATCHSIZE", *batchSizeFlag),
-		delayTime: envInt("DELAYTIME", *delayTimeFlag),
-		postgresURL:     os.Getenv("POSTGRES_URL"),
+		init:        envBool("INIT", *initFlag),
+		count:       envInt("COUNT", *countFlag),
+		term:        envInt("TERM", *termFlag),
+		batchSize:   envInt("BATCHSIZE", *batchSizeFlag),
+		delayTime:   envInt("DELAYTIME", *delayTimeFlag),
+		postgresURL: os.Getenv("POSTGRES_URL"),
 	}
 }
 
@@ -85,14 +85,8 @@ func run(ctx context.Context, config Config) error {
 	}
 	defer pool.Close()
 
-	// grab course IDs from DB
-	ids, err := enrollalert.GetAllCourseIDs(pool)
-	if err != nil {
-		return err
-	}
-
 	// scrape API for course section info and update DB
-	if err := enrollalert.CourseInfoUpdateDriver(pool, ids, config.batchSize, config.delayTime); err != nil {
+	if err := enrollalert.CourseInfoUpdateDriver(pool); err != nil {
 		return err
 	}
 
@@ -114,12 +108,14 @@ func handler(ctx context.Context) error {
 
 // main Main function for AWS Lambda
 func main() {
+
 	if os.Getenv("AWS_LAMBDA_FUNCTION_NAME") != "" {
+		timeStart := time.Now()
 		lambda.Start(handler)
+		log.Printf("Course updating done in %s", time.Since(timeStart))
 		return
 	}
 	if err := run(context.Background(), loadConfig()); err != nil {
 		log.Fatal(err)
 	}
 }
-

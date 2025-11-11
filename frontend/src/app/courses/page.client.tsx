@@ -30,34 +30,28 @@ type Course = {
   course_name: string
   course_title: string
   subject_id: number
-  total_enrolled: number
-  total_capacity: number
-  total_open_seats: number
   has_subsections: boolean
+  course_status?: 'OPEN' | 'WAITLISTED' | 'CLOSED'
 }
 
 type Discussion = {
   section_num: string
   section_type: 'DIS' | 'LAB' | 'SEM'
-  capacity: number
-  enrolled: number
-  open_seats: number
+  course_status?: 'OPEN' | 'WAITLISTED' | 'CLOSED'
 }
 
 type Lecture = {
   lecture_num: string
   professor: string
-  capacity: number
-  enrolled: number
-  open_seats: number
+  course_status?: 'OPEN' | 'WAITLISTED' | 'CLOSED'
   discussions: Discussion[]
 }
 
 type NotifyTarget = {
   courseId: string
   section: string
-  openSeats: number
-  subsections: Subsection[]         
+  subsections: Subsection[]
+  lectureStatus?: 'OPEN' | 'WAITLISTED' | 'CLOSED'
 }
 
 export default function CoursesClient({
@@ -91,7 +85,7 @@ export default function CoursesClient({
   })
 
   const [notifyTarget, setNotifyTarget] =
-    useState<NotifyTarget | null>(null) 
+    useState<NotifyTarget | null>(null)
 
   const [open, setOpen] = useState(false)
   const [page, setPage] = useState(1)
@@ -180,8 +174,8 @@ export default function CoursesClient({
           onOpenChange={() => setNotifyTarget(null)}
           courseId={notifyTarget.courseId}
           sectionNum={notifyTarget.section}
-          openSeats={notifyTarget.openSeats}
           subsections={notifyTarget.subsections}
+          lectureStatus={notifyTarget.lectureStatus}
         />
       )}
 
@@ -259,7 +253,9 @@ export default function CoursesClient({
           </p>
         ) : (
           courses.map((course, idx) => {
-            const isOpen = course.total_open_seats > 0
+            const status = course.course_status as 'OPEN' | 'WAITLISTED' | 'CLOSED'
+            const isOpen = status === 'OPEN'
+            const isWaitlisted = status === 'WAITLISTED'
             return (
               <Card
                 key={`${course.course_id}-${idx}`}
@@ -281,10 +277,12 @@ export default function CoursesClient({
                       className={`h-6 px-2 py-0 text-xs ${
                         isOpen
                           ? 'border-green-600 text-green-600'
+                          : isWaitlisted
+                          ? 'border-yellow-600 text-yellow-600'
                           : 'border-red-600 text-red-600'
                       }`}
                     >
-                      {isOpen ? 'Open' : 'Closed'}
+                      {isOpen ? 'Open' : isWaitlisted ? 'Waitlisted' : 'Closed'}
                     </Button>
                   </div>
 
@@ -298,74 +296,75 @@ export default function CoursesClient({
                 </CardHeader>
 
                 <CardContent className="space-y-1">
-                  <div className="flex flex-wrap gap-x-4 gap-y-3">
-                    <span className="inline-flex items-center rounded-full border-2 px-3 py-1 text-base font-medium">
-                      Currently Enrolled:&nbsp;{course.total_enrolled}/{course.total_capacity}
-                    </span>
-                    <span className="inline-flex items-center rounded-full border-2 px-3 py-1 text-base font-medium">
-                      Open Seats:&nbsp;{course.total_open_seats}
-                    </span>
-                  </div>
-
                   {expanded[course.course_id] &&
                     sections[course.course_id] && (
                       <div className="space-y-3 mt-3">
-                        {sections[course.course_id].map((lec) => (
-                          <div key={lec.lecture_num}>
-                            <div className="flex items-center gap-2">
-                              <span className="font-semibold">
-                                LEC&nbsp;{lec.lecture_num}
-                                {lec.professor && lec.professor !== ' ' && ` — ${lec.professor}`}
-                              </span>
+                        {sections[course.course_id].map((lec) => {
+                          const lecStatus = lec.course_status as 'OPEN' | 'WAITLISTED' | 'CLOSED'
+                          const lecHasClosedSub = lec.discussions.some(d => (d.course_status === 'CLOSED'))
+                          const canNotify = lecStatus === 'CLOSED' || lecHasClosedSub
+                          return (
+                            <div key={lec.lecture_num}>
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold">
+                                  LEC&nbsp;{lec.lecture_num}
+                                  {lec.professor && lec.professor !== ' ' && ` — ${lec.professor}`}
+                                </span>
 
-                              <span
-                                className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${
-                                  lec.open_seats > 0
-                                    ? 'border-green-600 text-green-600'
-                                    : 'border-red-600 text-red-600'
-                                }`}
-                              >
-                                {lec.open_seats > 0 ? 'Open' : 'Closed'}
-                              </span>
+                                <span
+                                  className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${
+                                    lecStatus === 'OPEN'
+                                      ? 'border-green-600 text-green-600'
+                                      : lecStatus === 'WAITLISTED'
+                                      ? 'border-yellow-600 text-yellow-600'
+                                      : 'border-red-600 text-red-600'
+                                  }`}
+                                >
+                                  {lecStatus === 'OPEN' ? 'Open' : lecStatus === 'WAITLISTED' ? 'Waitlisted' : 'Closed'}
+                                </span>
 
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() =>
-                                  setNotifyTarget({
-                                    courseId: course.course_id,
-                                    section: lec.lecture_num,
-                                    openSeats: lec.open_seats,
-                                    subsections: lec.discussions.map((d) => ({
-                                      section_num: d.section_num,
-                                      open_seats: d.open_seats,
-                                    })),
-                                  })
-                                }
-                                className="h-6 px-2 py-0 text-xs font-semibold border-blue-600 bg-blue-600/10 text-blue-700 hover:bg-blue-600/20"
-                              >
-                                Notify&nbsp;Me
-                              </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() =>
+                                    setNotifyTarget({
+                                      courseId: course.course_id,
+                                      section: lec.lecture_num,
+                                      subsections: lec.discussions.map((d) => ({
+                                        section_num: d.section_num,
+                                        course_status: d.course_status,
+                                      })) as Subsection[],
+                                      lectureStatus: lec.course_status,
+                                    })
+                                  }
+                                  className={`h-6 px-2 py-0 text-xs font-semibold ${
+                                    canNotify ? 'border-blue-600 bg-blue-600/10 text-blue-700 hover:bg-blue-600/20' : 'opacity-50 cursor-not-allowed'
+                                  }`}
+                                  disabled={!canNotify}
+                                >
+                                  Notify&nbsp;Me
+                                </Button>
+                              </div>
+
+                              {lec.discussions.length > 0 && (
+                                <ul className="ml-4 list-disc">
+                                  {lec.discussions.map((d) => {
+                                    const dStatus = d.course_status as 'OPEN' | 'WAITLISTED' | 'CLOSED'
+                                    return (
+                                      <li key={d.section_num}>
+                                        {d.section_type}&nbsp;{d.section_num}
+                                        &nbsp;—&nbsp;Status:&nbsp;
+                                        <span className="font-bold">
+                                          {dStatus === 'OPEN' ? 'Open' : dStatus === 'WAITLISTED' ? 'Waitlisted' : 'Closed'}
+                                        </span>
+                                      </li>
+                                    )
+                                  })}
+                                </ul>
+                              )}
                             </div>
-
-                            <p className="text-sm text-muted-foreground">
-                              Enrolled {lec.enrolled}/{lec.capacity}
-                              &nbsp;·&nbsp;Open {lec.open_seats}
-                            </p>
-
-                            {lec.discussions.length > 0 && (
-                              <ul className="ml-4 list-disc">
-                                {lec.discussions.map((d) => (
-                                  <li key={d.section_num}>
-                                    {d.section_type}&nbsp;{d.section_num}
-                                    &nbsp;—&nbsp;Open Seats:&nbsp;
-                                    <span className="font-bold">{d.open_seats}</span>
-                                  </li>
-                                ))}
-                              </ul>
-                            )}
-                          </div>
-                        ))}
+                          )
+                        })}
                       </div>
                     )}
                 </CardContent>
@@ -381,4 +380,3 @@ export default function CoursesClient({
     </div>
   )
 }
-

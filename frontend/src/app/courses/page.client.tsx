@@ -301,8 +301,8 @@ export default function CoursesClient({
                       <div className="space-y-3 mt-3">
                         {sections[course.course_id].map((lec) => {
                           const lecStatus = lec.course_status as 'OPEN' | 'WAITLISTED' | 'CLOSED'
-                          const lecHasClosedSub = lec.discussions.some(d => (d.course_status === 'CLOSED'))
-                          const canNotify = lecStatus === 'CLOSED' || lecHasClosedSub
+                          const lecHasClosedSub = lec.discussions.some(d => (d.course_status === 'CLOSED' || d.course_status === 'WAITLISTED'))
+                          const canNotify = lecStatus === 'CLOSED' || lecStatus === 'WAITLISTED' || lecHasClosedSub
                           return (
                             <div key={lec.lecture_num}>
                               <div className="flex items-center gap-2">

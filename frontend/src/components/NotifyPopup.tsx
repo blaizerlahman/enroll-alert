@@ -35,7 +35,7 @@ export default function NotifyPopup({
   subsections = [],
   lectureStatus,
 }: Props) {
-  const closedSubs  = subsections.filter(s => s.course_status === 'CLOSED')
+  const closedSubs  = subsections.filter(s => s.course_status !== 'OPEN')
   const hasClosed   = closedSubs.length > 0
 
   const [mode, setMode] = useState<'any'>('any')
@@ -56,13 +56,13 @@ export default function NotifyPopup({
     }
 
     if (subsections.length === 0) {
-      if (lectureStatus !== 'CLOSED') {
-        toast.error('This section must be CLOSED to save an alert.')
+      if (lectureStatus === 'OPEN') {
+        toast.error('This section must be CLOSED or WAITLISTED to save an alert.')
         return
       }
     } else {
       if (multiSubs.length === 0) {
-        toast.error('Select at least one closed subsection.')
+        toast.error('Select at least one closed/waitlisted subsection.')
         return
       }
     }
@@ -114,14 +114,14 @@ export default function NotifyPopup({
           className="space-y-4"
         >
           {subsections.length === 0 ? (
-            lectureStatus === 'CLOSED' ? (
+            lectureStatus !== 'OPEN' ? (
               <label className="inline-flex items-center gap-2">
                 <RadioGroupItem id="any-lecture" value="any" />
                 When any seats open in&nbsp;<strong>{sectionNum}</strong>
               </label>
             ) : (
               <p className="text-center py-6 text-sm text-muted-foreground">
-                Alerts can only be saved when the section is currently <strong>CLOSED</strong>. This section is currently <strong>{lectureStatus ?? 'UNKNOWN'}</strong>.
+                Alerts can only be saved when the section is currently <strong>CLOSED/WAITLISTED</strong>. This section is currently <strong>{lectureStatus ?? 'UNKNOWN'}</strong>.
               </p>
             )
           ) : (
@@ -195,7 +195,7 @@ export default function NotifyPopup({
           className="w-full sm:w-60 mx-auto block border-2 border-red-500 text-red-500 hover:bg-red-500 hover:text-white mt-6"
           onClick={submit}
           disabled={
-            (subsections.length === 0 && lectureStatus !== 'CLOSED') ||
+            (subsections.length === 0 && lectureStatus === 'OPEN') ||
             (subsections.length > 0 && multiSubs.length === 0)
           }
         >

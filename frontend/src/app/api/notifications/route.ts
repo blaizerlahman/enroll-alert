@@ -26,14 +26,14 @@ export async function POST(req: Request) {
       `
       SELECT COUNT(*)::int AS count
       FROM course_sections
-      WHERE course_id = $1 AND term = $2 AND section_num = ANY($3::text[]) AND course_status = 'CLOSED'
+      WHERE course_id = $1 AND term = $2 AND section_num = ANY($3::text[]) AND (course_status = 'CLOSED' OR course_status = 'WAITLISTED')
       `,
       [courseId, CURR_TERM, sectionNum]
     )
     const closedCount = closedCheck.rows[0].count
     if (closedCount !== sectionNum.length) {
       return NextResponse.json(
-        { error: 'Alerts can only be created for sections that are currently CLOSED.' },
+        { error: 'Alerts can only be created for sections that are currently CLOSED or WAITLISTED.' },
         { status: 409 }
       )
     }

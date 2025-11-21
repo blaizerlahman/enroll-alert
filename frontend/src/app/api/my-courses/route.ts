@@ -50,7 +50,7 @@ export async function GET(req: Request) {
                SUM(CASE WHEN course_status = 'WAITLISTED' THEN 1 ELSE 0 END) AS waitlisted_sections,
                SUM(CASE WHEN course_status = 'CLOSED' THEN 1 ELSE 0 END) AS closed_sections
         FROM secs
-        WHERE section_type = 'LEC'
+        WHERE section_type = 'LEC' OR section_type = 'FLD'
         GROUP BY course_id
       )
       SELECT

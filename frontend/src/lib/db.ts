@@ -69,7 +69,7 @@ export async function getCourseSubsections(courseId: string) {
         course_status,
         term
       FROM course_sections
-      WHERE course_id = $1 AND section_type = 'LEC' AND term = $2
+      WHERE course_id = $1 AND (section_type = 'LEC' OR section_type = 'FLD') AND term = $2
     ),
     dis AS (
       SELECT
@@ -81,7 +81,7 @@ export async function getCourseSubsections(courseId: string) {
         course_status,
         term
       FROM course_sections
-      WHERE course_id = $1 AND section_type IN ('DIS','LAB','SEM') and term = $2
+      WHERE course_id = $1 AND section_type IN ('DIS','LAB','SEM','FLD') and term = $2
     )
     SELECT
       l.*,
@@ -120,7 +120,7 @@ export async function getFilteredCourses<R extends QueryResultRow = Course>({
   const offset = (page - 1) * perPage
 
   const values: (string|number|null|boolean)[] = []
-  const whereClauses: string[] = [`cs.section_type = 'LEC'`]
+  const whereClauses: string[] = [`(cs.section_type = 'LEC' OR cs.section_type = 'FLD')`]
   let orderByClause = ''
   
   // require non-empty course title (usually empty course titles are grad school courses that don't get captured in initial run)
@@ -183,7 +183,7 @@ export async function getFilteredCourses<R extends QueryResultRow = Course>({
       SUM(CASE WHEN cs.course_status = 'CLOSED' THEN 1 ELSE 0 END) AS closed_sections_count,
       EXISTS (
         SELECT 1 FROM course_sections s2
-        WHERE s2.course_id = cs.course_id AND s2.section_type IN ('DIS', 'LAB') AND s2.term = cs.term
+        WHERE s2.course_id = cs.course_id AND s2.section_type IN ('DIS', 'LAB', 'SEM', 'FLD') AND s2.term = cs.term
       ) AS has_subsections,
       ARRAY(
         SELECT cb.breadth_description
@@ -236,7 +236,7 @@ export async function getDiscussionSections(courseId: string) {
   const result = await query(`
     SELECT section_num, section_type, open_seats
     FROM course_sections
-    WHERE section_type IN ('DIS', 'LAB', 'SEM') AND course_id = $1 AND term = $2
+    WHERE section_type IN ('DIS', 'LAB', 'SEM', 'FLD') AND course_id = $1 AND term = $2
     ORDER BY section_num
   `, [courseId, CURR_TERM])
   return result.rows

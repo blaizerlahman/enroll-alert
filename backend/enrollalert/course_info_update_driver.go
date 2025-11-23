@@ -67,9 +67,9 @@ func updateSeatInfoDB(pool *pgxpool.Pool, coursesSeatInfo []*Course) error {
 				//	log.Printf("  CourseTitle: '%s'", course.CourseTitle)
 				//	log.Printf("  Professor: %s %s", section.Professor.Name.First, section.Professor.Name.Last)
 				//	log.Printf("  Status: %s", section.Status)
-				//	log.Printf("  EnrollmentStatus: Capacity=%d, Enrolled=%d, OpenSeats=%d", 
-				//		section.EnrollmentStatus.Capacity, 
-				//		section.EnrollmentStatus.CurrentlyEnrolled, 
+				//	log.Printf("  EnrollmentStatus: Capacity=%d, Enrolled=%d, OpenSeats=%d",
+				//		section.EnrollmentStatus.Capacity,
+				//		section.EnrollmentStatus.CurrentlyEnrolled,
 				//		section.EnrollmentStatus.OpenSeats)
 				//}
 
@@ -77,17 +77,17 @@ func updateSeatInfoDB(pool *pgxpool.Pool, coursesSeatInfo []*Course) error {
 				profName := fmt.Sprintf("%s %s", section.Professor.Name.First, section.Professor.Name.Last)
 
 				result, err := pool.Exec(context.Background(), query,
-					TermNum, 
-					section.CourseID, 
-					section.SectionNumber, 
-					section.ClassType, 
+					TermNum,
+					section.CourseID,
+					section.SectionNumber,
+					section.ClassType,
 					section.Subject.SubjectID,
 					courseName,
-					course.CourseTitle, 
+					course.CourseTitle,
 					section.EnrollmentStatus.Capacity,
-					section.EnrollmentStatus.CurrentlyEnrolled, 
+					section.EnrollmentStatus.CurrentlyEnrolled,
 					section.EnrollmentStatus.OpenSeats,
-					section.EnrollmentStatus.WaitlistCapacity, 
+					section.EnrollmentStatus.WaitlistCapacity,
 					section.EnrollmentStatus.WaitlistOpenSpots,
 					profName,
 					section.Status,
@@ -102,10 +102,10 @@ func updateSeatInfoDB(pool *pgxpool.Pool, coursesSeatInfo []*Course) error {
 
 				rowsAffected := result.RowsAffected()
 				//if section.CourseID == "004287" {
-				//	log.Printf("DEBUG: Insert/update successful for 004287-%s, rows affected: %d", 
+				//	log.Printf("DEBUG: Insert/update successful for 004287-%s, rows affected: %d",
 				//		section.SectionNumber, rowsAffected)
 				//}
-				
+
 				if rowsAffected > 0 {
 					insertCount++
 				} else {
@@ -152,7 +152,7 @@ func CourseInfoUpdateDriver(pool *pgxpool.Pool) error {
 	// query API for all recently changed courses in last 12 min
 	coursesQuery, err := enrollalertquery.QueryRecentChanges(200, 12, Term)
 	if err != nil {
-		return fmt.Errorf("Failed to query for recent course changes")
+		return fmt.Errorf("Failed to query for recent course changes: %w", err)
 	}
 
 	log.Printf("DEBUG: Total courses retrieved from API: %d", len(coursesQuery))
@@ -166,7 +166,7 @@ func CourseInfoUpdateDriver(pool *pgxpool.Pool) error {
 		for _, queryPkg := range queryCourse.EnrollmentPackages {
 			pkg := &EnrollmentPackage{Sections: make([]Section, 0, len(queryPkg.Sections))}
 			for _, querySection := range queryPkg.Sections {
-				
+
 				// DEBUG logging for course 004287
 				//if querySection.CourseID == "004287" {
 				//	log.Printf("DEBUG: Processing query section for 004287-%s", querySection.SectionNumber)
@@ -175,7 +175,7 @@ func CourseInfoUpdateDriver(pool *pgxpool.Pool) error {
 				//		log.Printf("  querySection capacity: %d", querySection.EnrollmentStatus.Capacity)
 				//	}
 				//}
-				
+
 				sec := Section{
 					CourseID:      querySection.CourseID,
 					CatalogNumber: querySection.CatalogNumber,
@@ -187,7 +187,7 @@ func CourseInfoUpdateDriver(pool *pgxpool.Pool) error {
 				sec.Subject.ShortDesc = querySection.Subject.ShortDesc
 				sec.Professor.Name.First = querySection.Professor.Name.First
 				sec.Professor.Name.Last = querySection.Professor.Name.Last
-				
+
 				// copy enrollment data if present
 				if querySection.EnrollmentStatus != nil {
 					sec.EnrollmentStatus.Capacity = querySection.EnrollmentStatus.Capacity
@@ -196,10 +196,10 @@ func CourseInfoUpdateDriver(pool *pgxpool.Pool) error {
 					sec.EnrollmentStatus.WaitlistOpenSpots = querySection.EnrollmentStatus.WaitlistCurrentSize
 					sec.EnrollmentStatus.WaitlistCapacity = querySection.EnrollmentStatus.WaitlistCapacity
 				} else {
-					log.Printf("WARNING: No enrollment status for section %s-%s", 
+					log.Printf("WARNING: No enrollment status for section %s-%s",
 						querySection.CourseID, querySection.SectionNumber)
 				}
-				
+
 				pkg.Sections = append(pkg.Sections, sec)
 			}
 			course.EnrollmentPackages = append(course.EnrollmentPackages, pkg)

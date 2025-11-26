@@ -5,12 +5,31 @@ import (
 	"enroll-alert/enrollalert"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+func getOutboundIP(ctx context.Context) (string, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", "https://api.ipify.org", nil)
+	if err != nil {
+		return "", err
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	return string(body), nil
+}
 
 func main() {
 
@@ -31,6 +50,14 @@ func main() {
 	enrollalert.Term = fmt.Sprintf("%d", enrollalert.TermNum)
 
 	log.Printf("Startup: init=%t, count=%d, term=%d", *initialFlag, *countFlag, *termFlag)
+
+	// checks IP of lambda function
+	ip, err := getOutboundIP(context.Background())
+	if err != nil {
+		log.Printf("failed to determine outbound IP: %v", err)
+	} else {
+		log.Printf("outbound IP: %s", ip)
+	}
 
 	timeStart := time.Now()
 

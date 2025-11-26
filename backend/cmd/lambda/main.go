@@ -2,13 +2,16 @@ package main
 
 import (
 	"context"
-	"flag"
-	"time"
-	"log"
 	"enroll-alert/enrollalert"
+	"flag"
+	"io/ioutil"
+	"log"
+	"net/http"
 	"os"
 	"strconv"
 	"sync"
+	"time"
+
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -100,9 +103,35 @@ func run(ctx context.Context, config Config) error {
 	return enrollalert.NotifyMatchingAlerts(ctx, pool, mail, enrollalert.TermNum)
 }
 
+func getOutboundIP(ctx context.Context) (string, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", "https://api.ipify.org", nil)
+	if err != nil {
+		return "", err
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	return string(body), nil
+}
+
 // handler Handler for scraping driver.
 // Return error if error with scraping.
 func handler(ctx context.Context) error {
+
+	// checks IP of lambda function
+	ip, err := getOutboundIP(ctx)
+	if err != nil {
+		log.Printf("failed to determine outbound IP: %v", err)
+	} else {
+		log.Printf("outbound IP: %s", ip)
+	}
+
 	return run(ctx, loadConfig())
 }
 

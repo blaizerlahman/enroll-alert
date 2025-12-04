@@ -6,7 +6,6 @@ import { Toaster } from "@/components/ui/sonner"
 import { Analytics } from "@vercel/analytics/next"
 import { SpeedInsights } from "@vercel/speed-insights/next"
 import BreakPopup from "@/components/BreakPopup"
-import DownFooter from "@/components/DownFooter"
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] })
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] })
@@ -44,7 +43,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <BreakPopup />
           {children}
         </AuthProviderWrapper>
-        <DownFooter message="EnrollAlert is currently unable to get updated course information. Course alerts can still be set, but alerts will not be sent out until functionality is restored."/>
         <Toaster />
         <Analytics />
         <SpeedInsights />

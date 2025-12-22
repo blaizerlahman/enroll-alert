@@ -103,7 +103,19 @@ func main() {
 		log.Printf("Error with alert email sending: %v", err)
 	}
 
-	log.Printf("Course section info update successful.")
+	// check if we need to make aggregate logs
+	needAggregate, err := enrollalert.CheckAggregate(context.Background(), pool)
+	if err != nil {
+		log.Printf("Error with checking if we need to aggegate logs: %v", err)
+	}
+
+	// run aggregate log code
+	if needAggregate {
+		err = enrollalert.AggregateLogs(context.Background(), pool)
+		if err != nil {
+			log.Printf("Error with aggregating logs: %v", err)
+		}
+	}
 
 	log.Printf("Course updating done in %s", time.Since(timeStart))
 

@@ -93,8 +93,20 @@ func NotifyMatchingAlerts(ctx context.Context, pool *pgxpool.Pool, mail *EmailCl
 			  AND alert_type    = $4
 			  AND (seat_threshold IS NOT DISTINCT FROM $5)
 		`, alert.userID, alert.courseID, alert.sectionNum, alert.alertType, alert.seatThreshold); err != nil {
+
 			return err
 		}
+
+		// log that alert sent
+		if _, err := pool.Exec(ctx, `
+			INSERT INTO temp_logs
+				(user_id, course_id, course_name, section_num, log_type)
+			VALUES ($1, $2, $3, $4, $5)
+		`, alert.userID, alert.courseID, alert.courseName, alert.sectionNum, "SENT"); err != nil {
+			
+			return err;
+		}
+
 	}
 	return rows.Err()
 }

@@ -11,7 +11,6 @@ import (
 	"strconv"
 	"sync"
 	"time"
-
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -100,7 +99,23 @@ func run(ctx context.Context, config Config) error {
 	}
 
 	// send alert emails to users
-	return enrollalert.NotifyMatchingAlerts(ctx, pool, mail, enrollalert.TermNum)
+	err = enrollalert.NotifyMatchingAlerts(ctx, pool, mail, enrollalert.TermNum)
+	if err != nil {
+		return err
+	}
+
+	// check if we need to run daily log aggregation
+	needAggregate, err := enrollalert.CheckAggregate(ctx, pool)
+	if err != nil {
+		return err
+	}
+
+	// run log aggregation if so
+	if needAggregate == true {
+		return enrollalert.AggregateLogs(ctx, pool)
+	}
+
+	return nil
 }
 
 func getOutboundIP(ctx context.Context) (string, error) {

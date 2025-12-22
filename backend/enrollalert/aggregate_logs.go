@@ -2,13 +2,14 @@ package enrollalert
 
 import (
 	"context"
+
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // CheckAggregate Checks temp_logs table to see if a new day has begun, and if so we should aggregate the table.
 // Returns true if current day is after day of the oldest log, false if otherwise
 func CheckAggregate(ctx context.Context, pool *pgxpool.Pool) (bool, error) {
-	
+
 	var needAggregate bool
 
 	// see if current day is now different than day of earliest log (central time)
@@ -44,7 +45,7 @@ func AggregateLogs(ctx context.Context, pool *pgxpool.Pool) error {
 	// query temp_logs, users, and user_courses to get aggregate data for daily_logs table
 	// (most of query is self-explainable)
 	_, err = transact.Exec(ctx, `
-		INTERT INTO daily_logs (
+		INSERT INTO daily_logs (
 			day,
 			user_count,
 			total_alerts_set_count,
@@ -61,7 +62,6 @@ func AggregateLogs(ctx context.Context, pool *pgxpool.Pool) error {
 			most_set_hour,
 			most_sent_hour
 		)
-		
 		SELECT
 			agg.day,
 			agg.user_count,
@@ -74,46 +74,42 @@ func AggregateLogs(ctx context.Context, pool *pgxpool.Pool) error {
 			most_sent.course_id,
 			most_set.course_name,
 			most_sent.course_name,
-			most_set.count,
-			most_sent.count,
-			most_set_hour.hour,
-			most_sent_hour.hour
-
+			COALESCE(most_set.total, 0),
+			COALESCE(most_sent.total, 0),
+			COALESCE(most_set_hour.hour, -1),
+			COALESCE(most_sent_hour.hour, -1)
 		FROM (
 			SELECT
-				DATE(MIN(created_at) AT TIME ZONE 'America/Chicago') AS day,
+				DATE(created_at AT TIME ZONE 'America/Chicago') AS day,
 				(SELECT COUNT(*) FROM users) AS user_count,
 				(SELECT COUNT(*) FROM user_courses) AS current_alerts_set_count,
 				COUNT(*) FILTER (WHERE log_type = 'SET') AS daily_alerts_set_count,
 				COUNT(*) FILTER (WHERE log_type = 'SENT') AS daily_alerts_sent_count
 			FROM temp_logs
+			GROUP BY DATE(created_at AT TIME ZONE 'America/Chicago')
 		) agg
-
 		LEFT JOIN LATERAL (
 			SELECT total_alerts_set_count, total_alerts_sent_count
 			FROM daily_logs
 			ORDER BY day DESC
 			LIMIT 1
 		) totals ON true
-
 		LEFT JOIN LATERAL (
-			SELECT course_id, course_name, COUNT(*) as total
+			SELECT course_id, course_name, COUNT(*) AS total
 			FROM temp_logs
 			WHERE log_type = 'SET'
 			GROUP BY course_id, course_name
 			ORDER BY total DESC
 			LIMIT 1
 		) most_set ON true
-			
 		LEFT JOIN LATERAL (
-			SELECT course_id, course_name, COUNT(*) as total
+			SELECT course_id, course_name, COUNT(*) AS total
 			FROM temp_logs
 			WHERE log_type = 'SENT'
 			GROUP BY course_id, course_name
 			ORDER BY total DESC
 			LIMIT 1
 		) most_sent ON true
-
 		LEFT JOIN LATERAL (
 			SELECT EXTRACT(HOUR FROM created_at AT TIME ZONE 'America/Chicago')::smallint AS hour
 			FROM temp_logs
@@ -122,7 +118,6 @@ func AggregateLogs(ctx context.Context, pool *pgxpool.Pool) error {
 			ORDER BY COUNT(*) DESC
 			LIMIT 1
 		) most_set_hour ON true
-
 		LEFT JOIN LATERAL (
 			SELECT EXTRACT(HOUR FROM created_at AT TIME ZONE 'America/Chicago')::smallint AS hour
 			FROM temp_logs
@@ -135,7 +130,7 @@ func AggregateLogs(ctx context.Context, pool *pgxpool.Pool) error {
 	if err != nil {
 		return err
 	}
-	
+
 	// clear temp logs after aggregate has been made
 	_, err = transact.Exec(ctx, `DELETE FROM temp_logs`)
 	if err != nil {

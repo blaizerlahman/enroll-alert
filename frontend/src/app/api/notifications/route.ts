@@ -117,7 +117,7 @@ export async function POST(req: Request) {
         ORDER BY c.term DESC
         LIMIT 1
         `,
-        [userId, courseId, , sec, "SET"]
+        [userId, courseId, sec, "SET"]
       )
     }
 

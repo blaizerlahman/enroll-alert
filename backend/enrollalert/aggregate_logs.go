@@ -60,7 +60,10 @@ func AggregateLogs(ctx context.Context, pool *pgxpool.Pool) error {
 			most_set_count,
 			most_sent_count,
 			most_set_hour,
-			most_sent_hour
+			most_sent_hour,
+			min_time_to_send,
+			max_time_to_send,
+			avg_time_to_send
 		)
 		SELECT
 			agg.day,
@@ -77,7 +80,10 @@ func AggregateLogs(ctx context.Context, pool *pgxpool.Pool) error {
 			COALESCE(most_set.total, 0),
 			COALESCE(most_sent.total, 0),
 			COALESCE(most_set_hour.hour, -1),
-			COALESCE(most_sent_hour.hour, -1)
+			COALESCE(most_sent_hour.hour, -1),
+			min_time.time,
+			max_time.time,
+			avg_time.time
 		FROM (
 			SELECT
 				DATE(created_at AT TIME ZONE 'America/Chicago') AS day,
@@ -125,7 +131,22 @@ func AggregateLogs(ctx context.Context, pool *pgxpool.Pool) error {
 			GROUP BY 1
 			ORDER BY COUNT(*) DESC
 			LIMIT 1
-		) most_sent_hour ON true;
+		) most_sent_hour ON true
+		LEFT JOIN LATERAL (
+			SELECT MIN(time_to_send) AS hour
+			FROM temp_logs
+			WHERE log_type = 'SENT'
+		) min_time
+		LEFT JOIN LATERAL (
+			SELECT MAX(time_to_send) AS hour
+			FROM temp_logs
+			WHERE log_type = 'SENT'
+		) max_time
+		LEFT JOIN LATERAL (
+			SELECT AVG(time_to_send) AS hour
+			FROM temp_logs
+			WHERE log_type = 'SENT'
+		) avg_time;
 	`)
 	if err != nil {
 		return err

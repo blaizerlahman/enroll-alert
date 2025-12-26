@@ -133,20 +133,20 @@ func AggregateLogs(ctx context.Context, pool *pgxpool.Pool) error {
 			LIMIT 1
 		) most_sent_hour ON true
 		LEFT JOIN LATERAL (
-			SELECT MIN(time_to_send) AS hour
+			SELECT MIN(time_to_send) AS time
 			FROM temp_logs
 			WHERE log_type = 'SENT'
-		) min_time
+		) min_time ON true
 		LEFT JOIN LATERAL (
-			SELECT MAX(time_to_send) AS hour
+			SELECT MAX(time_to_send) AS time
 			FROM temp_logs
 			WHERE log_type = 'SENT'
-		) max_time
+		) max_time ON true
 		LEFT JOIN LATERAL (
-			SELECT AVG(time_to_send) AS hour
+			SELECT AVG(time_to_send) AS time
 			FROM temp_logs
 			WHERE log_type = 'SENT'
-		) avg_time;
+		) avg_time ON true;
 	`)
 	if err != nil {
 		return err

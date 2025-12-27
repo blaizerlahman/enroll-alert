@@ -152,6 +152,32 @@ func AggregateLogs(ctx context.Context, pool *pgxpool.Pool) error {
 		return err
 	}
 
+	// query for upating course send times in courses table (eventually to be displayed on site)
+	_, err = transact.Exec(ctx, `
+		INSERT INTO courses (
+			course_id,
+			total_sends,
+			total_time_to_send,
+			min_time_to_send,
+			max_time_to_send
+		)
+		SELECT
+			course_id,
+			COUNT(*) AS total_sends,
+			SUM(time_to_send) AS total_time_to_send,
+			MIN(time_to_send) AS min_time_to_send,
+			MAX(time_to_send) AS max_time_to_send
+		FROM temp_logs
+		WHERE log_type = 'SENT'
+		GROUP BY course_id
+
+		ON CONFLICT (course_id) DO UPDATE SET
+			total_sends = courses.total_sends + EXCLUDED.total_sends,
+			total_time_to_send = courses.total_time_to_send + EXCLUDED.total_time_to_send,
+			min_time_to_send = COALESCE(LEAST(courses.min_time_to_send, EXCLUDED.min_time_to_send), EXCLUDED.min_time_to_send),
+			max_time_to_send = COALESCE(GREATEST(courses.max_time_to_send, EXCLUDED.max_time_to_send), EXCLUDED.max_time_to_send);
+	`)
+
 	// clear temp logs after aggregate has been made
 	_, err = transact.Exec(ctx, `DELETE FROM temp_logs`)
 	if err != nil {

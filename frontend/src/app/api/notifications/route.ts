@@ -95,29 +95,30 @@ export async function POST(req: Request) {
       await query(
         `
         INSERT INTO user_courses
-          (user_id, course_id, section_num, alert_type)
-        VALUES ($1, $2, $3, $4)
+          (user_id, course_id, section_num, alert_type, term)
+        VALUES ($1, $2, $3, $4, $5)
         `,
-        [userId, courseId, sec, alertType]
+        [userId, courseId, sec, alertType, CURR_TERM]
       )
 
       // log course alert set (grab course name from courses since API doesn't provide it)
       await query(
         `
         INSERT INTO temp_logs
-          (user_id, course_id, course_name, section_num, log_type)
+          (user_id, course_id, course_name, section_num, log_type, term)
         SELECT
           $1,
           $2,
           c.course_name,
           $3,
-          $4
+          $4,
+          $5
         FROM courses c
         WHERE c.course_id = $2
         ORDER BY c.term DESC
         LIMIT 1
         `,
-        [userId, courseId, sec, "SET"]
+        [userId, courseId, sec, "SET", CURR_TERM]
       )
     }
 

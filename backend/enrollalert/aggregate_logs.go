@@ -154,31 +154,35 @@ func AggregateLogs(ctx context.Context, pool *pgxpool.Pool) error {
 
 	// query for upating course send times in courses table (eventually to be displayed on site)
 	_, err = transact.Exec(ctx, `
-		INSERT INTO courses (
-			course_id,
-			term,
-			total_sends,
-			total_time_to_send,
-			min_time_to_send,
-			max_time_to_send
-		)
-		SELECT
-			tl.course_id,
-			tl.term,
-			COUNT(*) AS total_sends,
-			SUM(time_to_send) AS total_time_to_send,
-			MIN(time_to_send) AS min_time_to_send,
-			MAX(time_to_send) AS max_time_to_send
-		FROM temp_logs tl
-		WHERE tl.log_type = 'SENT'
-		GROUP BY tl.course_id, tl.term
-
-		ON CONFLICT (course_id, term) DO UPDATE SET
-			total_sends = courses.total_sends + EXCLUDED.total_sends,
-			total_time_to_send = courses.total_time_to_send + EXCLUDED.total_time_to_send,
-			min_time_to_send = COALESCE(LEAST(courses.min_time_to_send, EXCLUDED.min_time_to_send), EXCLUDED.min_time_to_send),
-			max_time_to_send = COALESCE(GREATEST(courses.max_time_to_send, EXCLUDED.max_time_to_send), EXCLUDED.max_time_to_send);
+		UPDATE courses c
+		SET
+				total_sends = c.total_sends + agg.total_sends,
+				total_time_to_send = c.total_time_to_send + agg.total_time_to_send,
+				min_time_to_send = COALESCE(
+						LEAST(c.min_time_to_send, agg.min_time_to_send),
+						agg.min_time_to_send
+				),
+				max_time_to_send = COALESCE(
+						GREATEST(c.max_time_to_send, agg.max_time_to_send),
+						agg.max_time_to_send
+				)
+		FROM (
+				SELECT
+						course_id,
+						term,
+						COUNT(*) AS total_sends,
+						SUM(time_to_send) AS total_time_to_send,
+						MIN(time_to_send) AS min_time_to_send,
+						MAX(time_to_send) AS max_time_to_send
+				FROM temp_logs
+				WHERE log_type = 'SENT'
+				GROUP BY course_id, term
+		) agg
+		WHERE c.course_id = agg.course_id AND c.term = agg.term;
 	`)
+	if err != nil {
+		return err;
+	}
 
 	// clear temp logs after aggregate has been made
 	_, err = transact.Exec(ctx, `DELETE FROM temp_logs`)

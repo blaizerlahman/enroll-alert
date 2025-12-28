@@ -156,8 +156,8 @@ func AggregateLogs(ctx context.Context, pool *pgxpool.Pool) error {
 	_, err = transact.Exec(ctx, `
 		UPDATE courses c
 		SET
-				total_sends = c.total_sends + agg.total_sends,
-				total_time_to_send = c.total_time_to_send + agg.total_time_to_send,
+				total_sends = COALESCE(c.total_sends, 0) + agg.total_sends,
+				total_time_to_send = COALESCE(c.total_time_to_send, 0) + agg.total_time_to_send,
 				min_time_to_send = COALESCE(
 						LEAST(c.min_time_to_send, agg.min_time_to_send),
 						agg.min_time_to_send

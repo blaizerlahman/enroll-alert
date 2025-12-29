@@ -2,9 +2,7 @@ package enrollalert
 
 import (
 	"log"
-
 	"context"
-
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -18,6 +16,7 @@ type alertRow struct {
 	seatThreshold *int
 	openSeats     int
 	timeToSend    float32
+	term 					int
 }
 
 // NotifyMatchingAlerts Looks at newly updated courses and sends email alerts to users if the courses
@@ -35,18 +34,19 @@ func NotifyMatchingAlerts(ctx context.Context, pool *pgxpool.Pool, mail *EmailCl
 		       uc.alert_type,
 		       uc.seat_threshold,
 		       cs.open_seats,
-					 (EXTRACT(EPOCH FROM (NOW() - uc.created_at)))::REAL / 3600 AS time_to_send
+					 (EXTRACT(EPOCH FROM (NOW() - uc.created_at)))::REAL / 3600 AS time_to_send,
+					 uc.term
 		FROM user_courses uc
 		JOIN users u ON u.id = uc.user_id
 		JOIN course_sections cs
 		     ON cs.course_id   = uc.course_id
 		    AND cs.section_num = uc.section_num
-		    AND cs.term        = $1
+		    AND cs.term        = uc.term
 		WHERE (
 			  uc.alert_type = 'any' AND cs.course_status = 'OPEN'
 		    OR uc.alert_type = 'threshold' AND cs.open_seats <= uc.seat_threshold
 		)
-	`, term)
+	`)
 
 	if err != nil {
 		return err
@@ -70,6 +70,7 @@ func NotifyMatchingAlerts(ctx context.Context, pool *pgxpool.Pool, mail *EmailCl
 			&alert.seatThreshold,
 			&alert.openSeats,
 			&alert.timeToSend,
+			&alert.term,
 		); err != nil {
 			return err
 		}
@@ -103,9 +104,9 @@ func NotifyMatchingAlerts(ctx context.Context, pool *pgxpool.Pool, mail *EmailCl
 		// log that alert sent
 		if _, err := pool.Exec(ctx, `
 			INSERT INTO temp_logs
-				(user_id, course_id, course_name, section_num, log_type, time_to_send)
-			VALUES ($1, $2, $3, $4, $5, $6)
-		`, alert.userID, alert.courseID, alert.courseName, alert.sectionNum, "SENT", alert.timeToSend); err != nil {
+				(user_id, course_id, course_name, section_num, log_type, time_to_send, term)
+			VALUES ($1, $2, $3, $4, $5, $6, $7)
+		`, alert.userID, alert.courseID, alert.courseName, alert.sectionNum, "SENT", alert.timeToSend, alert.term); err != nil {
 			
 			return err;
 		}

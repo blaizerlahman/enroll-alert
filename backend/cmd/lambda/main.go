@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"sync"
 	"strings"
+	"errors"
+	"fmt"
 	"time"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -122,7 +124,14 @@ func run(ctx context.Context, config Config) error {
 
 	// run initial DB loading if specified
 	if config.init {
-		return enrollalert.InitialDriver(config.count)
+		for _, term := range config.terms {
+			err := enrollalert.InitialDriver(config.count, term)
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
+
+		return nil
 	}
 
 	// establish DB connection
@@ -132,21 +141,50 @@ func run(ctx context.Context, config Config) error {
 	}
 	defer pool.Close()
 
-	// scrape API for course section info and update DB
-	if err := enrollalert.CourseInfoUpdateDriver(pool); err != nil {
-		return err
-	}
-
 	// create SES email client
 	mail, err := enrollalert.NewEmailClient(ctx, os.Getenv("EMAIL_FROM"), os.Getenv("ALERT_TEMPLATE"))
 	if err != nil {
 		return err
 	}
 
-	// send alert emails to users
-	err = enrollalert.NotifyMatchingAlerts(ctx, pool, mail, enrollalert.TermNum)
-	if err != nil {
-		return err
+	var (
+		wg sync.WaitGroup
+		mu sync.Mutex
+		errs []error
+	)
+
+	// concurrently run a goroutine for each term scrape
+	for _, term := range config.terms {
+
+		wg.Add(1)
+		go func() {
+
+			defer wg.Done()
+
+			// scrape API for course section info and update DB
+			if err := enrollalert.CourseInfoUpdateDriver(pool, term); err != nil {
+				mu.Lock()
+				errs = append(errs, fmt.Errorf("TERM: %d UPDATE: %w", term, err))
+				mu.Unlock()
+				return
+			}
+
+
+			// send alert emails to users
+			err := enrollalert.NotifyMatchingAlerts(ctx, pool, mail, term)
+			if err != nil {
+				mu.Lock()
+				errs = append(errs, fmt.Errorf("TERM: %d NOTIFY: %w", term, err))
+				mu.Unlock()
+				return
+			}
+		}()
+	}
+
+	wg.Wait()
+
+	if len(errs) != 0 {
+		return errors.Join(errs...)
 	}
 
 	// check if we need to run daily log aggregation

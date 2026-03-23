@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
-
+	"strconv"
 	"github.com/blaizerlahman/enroll-alert-query/enrollalertquery"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -16,7 +16,7 @@ type CourseCodes struct {
 	CourseTitle string
 }
 
-func updateSeatInfoDB(pool *pgxpool.Pool, coursesSeatInfo []*Course) error {
+func updateSeatInfoDB(pool *pgxpool.Pool, coursesSeatInfo []*Course, term int) error {
 
 	query := `
 		INSERT INTO course_sections (
@@ -77,7 +77,7 @@ func updateSeatInfoDB(pool *pgxpool.Pool, coursesSeatInfo []*Course) error {
 				profName := fmt.Sprintf("%s %s", section.Professor.Name.First, section.Professor.Name.Last)
 
 				result, err := pool.Exec(context.Background(), query,
-					TermNum,
+					term,
 					section.CourseID,
 					section.SectionNumber,
 					section.ClassType,
@@ -117,19 +117,19 @@ func updateSeatInfoDB(pool *pgxpool.Pool, coursesSeatInfo []*Course) error {
 				var dbCourseTitle string
 				err = pool.QueryRow(context.Background(),
 					`SELECT course_name, course_title FROM public.courses WHERE course_id = $1 AND term = $2 LIMIT 1`,
-					section.CourseID, TermNum).Scan(&dbCourseName, &dbCourseTitle)
+					section.CourseID, term).Scan(&dbCourseName, &dbCourseTitle)
 				if err != nil {
-					log.Printf("Could not find course row for course_id=%s term=%d: %v", section.CourseID, TermNum, err)
+					log.Printf("Could not find course row for course_id=%s term=%d: %v", section.CourseID, term, err)
 				} else {
 					_, err = pool.Exec(context.Background(),
 						`UPDATE course_sections SET course_name = $1, course_title = $2 WHERE course_id = $3 AND section_num = $4 AND term = $5`,
-						dbCourseName, dbCourseTitle, section.CourseID, section.SectionNumber, TermNum)
+						dbCourseName, dbCourseTitle, section.CourseID, section.SectionNumber, term)
 					if err != nil {
 						log.Printf("Failed to update course_sections names/status for %s %s: %v", section.CourseID, section.SectionNumber, err)
 					}
 					_, err = pool.Exec(context.Background(),
 						`UPDATE public.courses SET status = $1 WHERE course_id = $2 AND term = $3`,
-						section.Status, section.CourseID, TermNum)
+						section.Status, section.CourseID, term)
 					if err != nil {
 						log.Printf("Failed to update public.courses status for %s: %v", section.CourseID, err)
 					}
@@ -147,10 +147,12 @@ func updateSeatInfoDB(pool *pgxpool.Pool, coursesSeatInfo []*Course) error {
 // CourseInfoUpdateDriver Scraper recent changes in course enrollment info from UW Madison enrollment API. Uses scraped data to update Postgres database for
 // specified courses
 // Returns error on failure
-func CourseInfoUpdateDriver(pool *pgxpool.Pool) error {
+func CourseInfoUpdateDriver(pool *pgxpool.Pool, term int) error {
+
+	termStr := strconv.Itoa(term)
 
 	// query API for all recently changed courses in last 12 min
-	coursesQuery, err := enrollalertquery.QueryRecentChanges(200, 12, Term)
+	coursesQuery, err := enrollalertquery.QueryRecentChanges(200, 12, termStr)
 	if err != nil {
 		return fmt.Errorf("Failed to query for recent course changes: %w", err)
 	}
@@ -210,7 +212,7 @@ func CourseInfoUpdateDriver(pool *pgxpool.Pool) error {
 	log.Printf("DEBUG: Total sections to insert/update: %d", len(coursesSeatInfo))
 
 	// update seat info in DB
-	if err := updateSeatInfoDB(pool, coursesSeatInfo); err != nil {
+	if err := updateSeatInfoDB(pool, coursesSeatInfo, term); err != nil {
 		return fmt.Errorf("Failed to update DB with course info: %w", err)
 	}
 

@@ -97,6 +97,7 @@ func AggregateLogs(ctx context.Context, pool *pgxpool.Pool) error {
 		LEFT JOIN LATERAL (
 			SELECT total_alerts_set_count, total_alerts_sent_count
 			FROM daily_logs
+			WHERE day < agg.day
 			ORDER BY day DESC
 			LIMIT 1
 		) totals ON true
@@ -146,7 +147,26 @@ func AggregateLogs(ctx context.Context, pool *pgxpool.Pool) error {
 			SELECT AVG(time_to_send) AS time
 			FROM temp_logs
 			WHERE log_type = 'SENT'
-		) avg_time ON true;
+		) avg_time ON true
+
+		ON CONFLICT (day) DO UPDATE SET
+    user_count               = EXCLUDED.user_count,
+    total_alerts_set_count   = EXCLUDED.total_alerts_set_count,
+    total_alerts_sent_count  = EXCLUDED.total_alerts_sent_count,
+    current_alerts_set_count = EXCLUDED.current_alerts_set_count,
+    daily_alerts_set_count   = EXCLUDED.daily_alerts_set_count,
+    daily_alerts_sent_count  = EXCLUDED.daily_alerts_sent_count,
+    most_set_course_id       = EXCLUDED.most_set_course_id,
+    most_sent_course_id      = EXCLUDED.most_sent_course_id,
+    most_set_course          = EXCLUDED.most_set_course,
+    most_sent_course         = EXCLUDED.most_sent_course,
+    most_set_count           = EXCLUDED.most_set_count,
+    most_sent_count          = EXCLUDED.most_sent_count,
+    most_set_hour            = EXCLUDED.most_set_hour,
+    most_sent_hour           = EXCLUDED.most_sent_hour,
+    min_time_to_send         = EXCLUDED.min_time_to_send,
+    max_time_to_send         = EXCLUDED.max_time_to_send,
+    avg_time_to_send         = EXCLUDED.avg_time_to_send;
 	`)
 	if err != nil {
 		return err

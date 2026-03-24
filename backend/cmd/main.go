@@ -3,14 +3,17 @@ package main
 import (
 	"context"
 	"enroll-alert/enrollalert"
+	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
+	"strings"
+	"strconv"
+	"sync"
 	"time"
-
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -31,43 +34,48 @@ func getOutboundIP(ctx context.Context) (string, error) {
 	return string(body), nil
 }
 
+func parseTerms(terms string) []int {
+	var termInts []int
+	for _, part := range strings.Split(terms, ",") {
+		term, err := strconv.Atoi(strings.TrimSpace(part))
+		if err != nil {
+			continue
+		}
+		termInts = append(termInts, term)
+	}
+	return termInts
+}
+
 func main() {
-
-	// check for init and count flag to conduct initial load (default is no initial load)
 	initialFlag := flag.Bool("init", false, "run initial course loading")
-	countFlag := flag.Int("count", 5666, "number of courses to initially load")
-
-	// check for term number (Spring 2026 as default)
-	termFlag := flag.Int("term", 1264, "term number to load courses for")
-
-	// check for batch size (100 as default)
-	//batchSize := flag.Int("batchsize", 100, "batch size of API calls")
-
+	countFlag   := flag.Int("count", 5666, "number of courses to initially load")
+	termsFlag   := flag.String("terms", "1266,1272", "comma-separated term numbers to load courses for")
 	flag.Parse()
 
-	// set term number
-	enrollalert.TermNum = *termFlag
-	enrollalert.Term = fmt.Sprintf("%d", enrollalert.TermNum)
+	terms := parseTerms(*termsFlag)
+	if len(terms) == 0 {
+		log.Fatalf("No valid terms parsed from: %s", *termsFlag)
+	}
 
-	log.Printf("Startup: init=%t, count=%d, term=%d", *initialFlag, *countFlag, *termFlag)
+	log.Printf("Startup: init=%t, count=%d, terms=%v", *initialFlag, *countFlag, terms)
 
-	// checks IP of lambda function
 	ip, err := getOutboundIP(context.Background())
 	if err != nil {
-		log.Printf("failed to determine outbound IP: %v", err)
+		log.Printf("Failed to determine outbound IP: %v", err)
 	} else {
-		log.Printf("outbound IP: %s", ip)
+		log.Printf("Outbound IP: %s", ip)
 	}
 
 	timeStart := time.Now()
 
 	// conduct initial course load if specified
 	if *initialFlag {
-		if err := enrollalert.InitialDriver(*countFlag); err != nil {
-			log.Fatalf("Error during initial load: %v", err)
+		for _, term := range terms {
+			if err := enrollalert.InitialDriver(*countFlag, term); err != nil {
+				log.Fatalf("Error during initial load for term %d: %v", term, err)
+			}
+			log.Printf("Initial load for term %d successful (%s)", term, time.Since(timeStart))
 		}
-
-		log.Printf("Initial load successful (%s)", time.Since(timeStart))
 		return
 	}
 
@@ -78,47 +86,59 @@ func main() {
 	}
 	defer pool.Close()
 
-	// get course ids from existing courses table
-	//courseIDs, err := enrollalert.GetAllCourseIDs(pool)
-	//if err != nil {
-	//	log.Fatalf("Error during course ID retrieval: %v", err)
-	//}
-
-	//log.Printf("Course ID retrieval successful.")
-
-	// conduct course section info update
-	err = enrollalert.CourseInfoUpdateDriver(pool)
-	if err != nil {
-		log.Fatalf("Error with course section info update: %v", err)
-	}
-
-	// create email clients
+	// create email client
 	mail, err := enrollalert.NewEmailClient(context.Background(), os.Getenv("EMAIL_FROM"), os.Getenv("ALERT_TEMPLATE"))
 	if err != nil {
 		log.Fatalf("Error with email client creation: %v", err)
 	}
 
-	// send alert emails for sections that now match alerts
-	if err := enrollalert.NotifyMatchingAlerts(context.Background(), pool, mail, enrollalert.TermNum); err != nil {
-		log.Printf("Error with alert email sending: %v", err)
+	var (
+		wg   sync.WaitGroup
+		mu   sync.Mutex
+		errs []error
+	)
+
+	// concurrently run a goroutine for each term scrape
+	for _, term := range terms {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			if err := enrollalert.CourseInfoUpdateDriver(pool, term); err != nil {
+				mu.Lock()
+				errs = append(errs, fmt.Errorf("term %d update: %w", term, err))
+				mu.Unlock()
+				return
+			}
+			log.Printf("Course section info update for term %d successful", term)
+
+			if err := enrollalert.NotifyMatchingAlerts(context.Background(), pool, mail, term); err != nil {
+				mu.Lock()
+				errs = append(errs, fmt.Errorf("term %d notify: %w", term, err))
+				mu.Unlock()
+				return
+			}
+			log.Printf("Alert emails for term %d sent successfully", term)
+		}()
+	}
+
+	wg.Wait()
+
+	if err := errors.Join(errs...); err != nil {
+		log.Fatalf("Errors during scrape: %v", err)
 	}
 
 	// check if we need to make aggregate logs
 	needAggregate, err := enrollalert.CheckAggregate(context.Background(), pool)
 	if err != nil {
-		log.Printf("Error with checking if we need to aggegate logs: %v", err)
+		log.Printf("Error checking if log aggregation needed: %v", err)
 	}
 
-	// run aggregate log code
 	if needAggregate {
-		err = enrollalert.AggregateLogs(context.Background(), pool)
-		if err != nil {
-			log.Printf("Error with aggregating logs: %v", err)
+		if err := enrollalert.AggregateLogs(context.Background(), pool); err != nil {
+			log.Printf("Error aggregating logs: %v", err)
 		}
 	}
 
 	log.Printf("Course updating done in %s", time.Since(timeStart))
-
-	log.Printf("Course scrape and info update successful.")
-
 }

@@ -33,12 +33,12 @@ export default function BreakPopup() {
             height={84}
           />
           <DialogTitle className="text-center text-2xl font-bold text-red-700">
-            EnrollAlert is back for Spring 2026 enrollment
+            EnrollAlert is back for Summer/Fall 2026 enrollment
           </DialogTitle>
         </DialogHeader>
 
         <p className="py-4 text-center text-m text-muted-foreground">
-          EnrollAlert is updated for Spring 2026! Set any alerts you need! If you cannot find a class, please fill out a feedback form.
+          EnrollAlert is updated for Summer and Fall 2026! Set any alerts you need! If you cannot find a class, please fill out a feedback form.
         </p>
       </DialogContent>
     </Dialog>

@@ -34,14 +34,13 @@ export async function GET(req: Request) {
     const alerts = await query(
       `
       WITH alerts AS (
-        SELECT course_id, section_num, alert_type, seat_threshold
+        SELECT course_id, section_num, alert_type, seat_threshold, term
         FROM user_courses
         WHERE user_id = $1
       ),
       secs AS (
         SELECT *
         FROM course_sections
-        WHERE term = $2
       ),
       agg AS (
         SELECT course_id,
@@ -57,6 +56,7 @@ export async function GET(req: Request) {
         s.course_id,
         s.course_name,
         s.course_title,
+        a.term,
         ag.open_sections,
         ag.waitlisted_sections,
         ag.closed_sections,
@@ -87,10 +87,11 @@ export async function GET(req: Request) {
         s.course_id,
         s.course_name,
         s.course_title,
+        a.term, 
         ag.open_sections, ag.waitlisted_sections, ag.closed_sections, ag.total_sections
       ORDER BY s.course_name
       `,
-      [userId, CURR_TERM]
+      [userId]
     );
 
     return NextResponse.json(alerts.rows)

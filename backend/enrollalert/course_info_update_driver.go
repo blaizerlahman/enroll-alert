@@ -118,21 +118,38 @@ func updateSeatInfoDB(pool *pgxpool.Pool, coursesSeatInfo []*Course, term int) e
 				err = pool.QueryRow(context.Background(),
 					`SELECT course_name, course_title FROM public.courses WHERE course_id = $1 AND term = $2 LIMIT 1`,
 					section.CourseID, term).Scan(&dbCourseName, &dbCourseTitle)
+
+				// if course not found, insert course in courses table before continuing
 				if err != nil {
+
 					log.Printf("Could not find course row for course_id=%s term=%d: %v", section.CourseID, term, err)
-				} else {
-					_, err = pool.Exec(context.Background(),
-						`UPDATE course_sections SET course_name = $1, course_title = $2 WHERE course_id = $3 AND section_num = $4 AND term = $5`,
-						dbCourseName, dbCourseTitle, section.CourseID, section.SectionNumber, term)
+					log.Printf("Inserting course row for course_id=%s term=%d...", section.CourseID, term)
+					
+					_, err = pool.Exec(context.Background(), ` 
+						INSERT INTO public.courses (course_id, subject_id, course_name, course_title, term)
+						VALUES ($1, $2, $3, $4, $5)
+						ON CONFLICT (course_id, term) DO NOTHING;
+					`, section.CourseID, section.Subject.SubjectID, courseName, course.CourseTitle, term)
 					if err != nil {
-						log.Printf("Failed to update course_sections names/status for %s %s: %v", section.CourseID, section.SectionNumber, err)
-					}
-					_, err = pool.Exec(context.Background(),
-						`UPDATE public.courses SET status = $1 WHERE course_id = $2 AND term = $3`,
-						section.Status, section.CourseID, term)
-					if err != nil {
-						log.Printf("Failed to update public.courses status for %s: %v", section.CourseID, err)
-					}
+						log.Printf("Error inserting course after not finding it in table, course_id=%s, term=%d: %v", section.CourseID, term, err)
+					}	
+
+					// set to results of new query since previous one failed
+					dbCourseName = courseName
+					dbCourseTitle = course.CourseTitle
+				}
+
+				_, err = pool.Exec(context.Background(),
+					`UPDATE course_sections SET course_name = $1, course_title = $2 WHERE course_id = $3 AND section_num = $4 AND term = $5`,
+					dbCourseName, dbCourseTitle, section.CourseID, section.SectionNumber, term)
+				if err != nil {
+					log.Printf("Failed to update course_sections names/status for %s %s: %v", section.CourseID, section.SectionNumber, err)
+				}
+				_, err = pool.Exec(context.Background(),
+					`UPDATE public.courses SET status = $1 WHERE course_id = $2 AND term = $3`,
+					section.Status, section.CourseID, term)
+				if err != nil {
+					log.Printf("Failed to update public.courses status for %s: %v", section.CourseID, err)
 				}
 
 				inserted[key] = true

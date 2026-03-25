@@ -24,7 +24,7 @@ import { Button } from '@/components/ui/button'
 import Navbar from '@/components/Navbar'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import NotifyPopup, { Subsection } from '@/components/NotifyPopup'
-import { CURR_TERM } from '@/lib/terms.ts'
+import { CURR_TERM, TERMS } from '@/lib/terms.ts'
 
 type Course = {
   course_id: string
@@ -96,6 +96,9 @@ export default function CoursesClient({
   const [busy, setBusy] = useState(false)
 
   const [selectedTerm, setSelectedTerm] = useState<number>(initialTerm)
+  const [termOpen, setTermOpen] = useState(false)
+  const AVAILABLE_TERMS = [1266, 1272] as const
+
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => setUser(u))
@@ -209,44 +212,73 @@ export default function CoursesClient({
       {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
 
       <main className="pt-24 px-6 space-y-4">
-        <Popover open={open} onOpenChange={setOpen}>
-          <PopoverTrigger asChild>
-            <Button variant="outline" className="w-[200px] justify-start">
-              {subjectFilter ?? 'Select Subject'}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-[200px] p-0">
-            <Command>
-              <CommandInput placeholder="Search subject…" />
-              <CommandEmpty>No subjects found.</CommandEmpty>
-              <CommandList>
-                <CommandGroup>
-                  <CommandItem
-                    value="all"
-                    onSelect={() => {
-                      setSubjectFilter(null)
-                      setOpen(false)
-                    }}
-                  >
-                    All Subjects
-                  </CommandItem>
-                  {subjects.map((s) => (
+        <div className="flex gap-2">
+          <Popover open={termOpen} onOpenChange={setTermOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="w-[160px] justify-start">
+                {TERMS[selectedTerm] ?? 'Select Term'}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[160px] p-0">
+              <Command>
+                <CommandList>
+                  <CommandGroup>
+                    {AVAILABLE_TERMS.map((t) => (
+                      <CommandItem
+                        key={t}
+                        value={String(t)}
+                        onSelect={() => {
+                          setSelectedTerm(t)
+                          setTermOpen(false)
+                        }}
+                      >
+                        {TERMS[t]}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+          <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="w-[200px] justify-start">
+                {subjectFilter ?? 'Select Subject'}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[200px] p-0">
+              <Command>
+                <CommandInput placeholder="Search subject…" />
+                <CommandEmpty>No subjects found.</CommandEmpty>
+                <CommandList>
+                  <CommandGroup>
                     <CommandItem
-                      key={s}
-                      value={s}
+                      value="all"
                       onSelect={() => {
-                        setSubjectFilter(s)
+                        setSubjectFilter(null)
                         setOpen(false)
                       }}
                     >
-                      {s}
+                      All Subjects
                     </CommandItem>
-                  ))}
-                </CommandGroup>
-              </CommandList>
-            </Command>
-          </PopoverContent>
-        </Popover>
+                    {subjects.map((s) => (
+                      <CommandItem
+                        key={s}
+                        value={s}
+                        onSelect={() => {
+                          setSubjectFilter(s)
+                          setOpen(false)
+                        }}
+                      >
+                        {s}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+        </div>
 
         <div className="flex flex-wrap gap-4">
           {breadths.map((b) => (

@@ -145,7 +145,7 @@ export default function CoursesClient({
     fetch('/api/breadths').then((r) => r.json()).then(setBreadths)
   }, [])
   useEffect(() => {
-    fetch('/api/subjects').then((r) => r.json()).then(setSubjects)
+    fetch(`/api/subjects?term=${selectedTerm}`).then((r) => r.json()).then(setSubjects)
   }, [])
 
   useEffect(() => {

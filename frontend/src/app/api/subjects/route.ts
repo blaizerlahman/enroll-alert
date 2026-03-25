@@ -1,11 +1,15 @@
 import { getSubjects, PoolBusyError } from '@/lib/db'
 import { NextResponse } from 'next/server'
+import { CURR_TERM } from '@/lib/terms.ts'
 
 export const revalidate = 86_400      
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
-    const subjects = await getSubjects()
+
+    const term = parseInt(new URL(req.url).searchParams.get('term') ?? String(CURR_TERM), 10)
+
+    const subjects = await getSubjects(term)
 
     return NextResponse.json(subjects, {
       headers: {

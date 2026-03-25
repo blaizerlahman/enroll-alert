@@ -212,10 +212,10 @@ export default function CoursesClient({
       {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
 
       <main className="pt-24 px-6 space-y-4">
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Popover open={termOpen} onOpenChange={setTermOpen}>
             <PopoverTrigger asChild>
-              <Button variant="outline" className="w-[160px] justify-start">
+              <Button variant="outline" className="w-[140px] sm:w-[160px] justify-start">
                 {TERMS[selectedTerm] ?? 'Select Term'}
               </Button>
             </PopoverTrigger>
@@ -242,7 +242,7 @@ export default function CoursesClient({
           </Popover>
           <Popover open={open} onOpenChange={setOpen}>
             <PopoverTrigger asChild>
-              <Button variant="outline" className="w-[200px] justify-start">
+              <Button variant="outline" className="w-[160px] sm:w-[200px] justify-start">
                 {subjectFilter ?? 'Select Subject'}
               </Button>
             </PopoverTrigger>

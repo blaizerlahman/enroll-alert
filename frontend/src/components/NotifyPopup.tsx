@@ -25,6 +25,7 @@ type Props = {
   sectionNum: string
   subsections?: Subsection[]
   lectureStatus?: 'OPEN'|'WAITLISTED'|'CLOSED'
+  term?: number
 }
 
 export default function NotifyPopup({
@@ -34,6 +35,7 @@ export default function NotifyPopup({
   sectionNum,
   subsections = [],
   lectureStatus,
+  term,
 }: Props) {
   const closedSubs  = subsections.filter(s => s.course_status !== 'OPEN')
   const hasClosed   = closedSubs.length > 0
@@ -80,7 +82,7 @@ export default function NotifyPopup({
         alertType:     'any',
       }
 
-      const response  = await fetch('/api/notifications', {
+      const response  = await fetch(`/api/notifications?term=${term}`, {
         method: 'POST',
         body:   JSON.stringify(body),
         headers:{ 'Content-Type': 'application/json' },

@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { getAdminAuth } from '@/lib/firebase-admin'
-import { query, CURR_TERM } from '@/lib/db'
+import { query } from '@/lib/db'
 import { IdRow, CountRow, ExistsRow } from '@/lib/types'
+import { CURR_TERM } from '@/lib/terms.ts'
 
 export async function POST(req: Request) {
   try {
@@ -11,6 +12,8 @@ export async function POST(req: Request) {
     const decoded = await adminAuth.verifyIdToken(token, true)
     const firebaseUid = decoded.uid
     const email = decoded.email ?? null
+
+    const term = parseInt(new URL(req.url).searchParams.get('term') ?? String(CURR_TERM), 10)
 
     // validate inputs
     if (
@@ -28,7 +31,7 @@ export async function POST(req: Request) {
       FROM course_sections
       WHERE course_id = $1 AND term = $2 AND section_num = ANY($3::text[]) AND (course_status = 'CLOSED' OR course_status = 'WAITLISTED')
       `,
-      [courseId, CURR_TERM, sectionNum]
+      [courseId, term, sectionNum]
     )
     const closedCount = closedCheck.rows[0].count
     if (closedCount !== sectionNum.length) {
@@ -80,9 +83,10 @@ export async function POST(req: Request) {
             AND course_id     = $2
             AND section_num   = $3
             AND alert_type    = $4
+            AND term          = $5
         ) AS exists
         `,
-        [userId, courseId, sec, alertType]
+        [userId, courseId, sec, alertType, term]
       )
       if (existsResult.rows[0].exists) {
         return NextResponse.json(
@@ -98,7 +102,7 @@ export async function POST(req: Request) {
           (user_id, course_id, section_num, alert_type, term)
         VALUES ($1, $2, $3, $4, $5)
         `,
-        [userId, courseId, sec, alertType, CURR_TERM]
+        [userId, courseId, sec, alertType, term]
       )
 
       // log course alert set (grab course name from courses since API doesn't provide it)
@@ -118,7 +122,7 @@ export async function POST(req: Request) {
         ORDER BY c.term DESC
         LIMIT 1
         `,
-        [userId, courseId, sec, "SET", CURR_TERM]
+        [userId, courseId, sec, "SET", term]
       )
     }
 
@@ -146,14 +150,17 @@ export async function DELETE(req: Request) {
     )
     const userId = userResult.rows[0].id
 
+    const term = parseInt(new URL(req.url).searchParams.get('term') ?? String(CURR_TERM), 10)
+
     await query(
       `
       DELETE FROM user_courses
       WHERE user_id     = $1
         AND course_id   = $2
         AND section_num = ANY($3::text[])
+        AND term        = $4
       `,
-      [userId, courseId, sectionNum]
+      [userId, courseId, sectionNum, term]
     )
 
     return NextResponse.json({ ok: true })

@@ -189,6 +189,7 @@ export default function CoursesClient({
           sectionNum={notifyTarget.section}
           subsections={notifyTarget.subsections}
           lectureStatus={notifyTarget.lectureStatus}
+          term={selectedTerm}
         />
       )}
 

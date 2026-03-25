@@ -1,7 +1,7 @@
 import CoursesClient from './page.client'
 import { getFilteredCourses, getSubjects, getBreadths } from '@/lib/db'
 import type { Course } from '@/lib/types'
-import { CURR_TERM } from '@/lib/terms.ts'
+import { CURR_TERM } from '@/lib/terms'
 
 export const dynamic = 'force-dynamic'
 

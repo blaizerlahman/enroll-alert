@@ -1,6 +1,6 @@
 import { getFilteredCourses, PoolBusyError } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
-import { CURR_TERM } from '@/lib/terms.ts'
+import { CURR_TERM } from '@/lib/terms'
 
 export const revalidate = 300
 

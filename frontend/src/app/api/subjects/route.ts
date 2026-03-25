@@ -1,8 +1,10 @@
 import { getSubjects, PoolBusyError } from '@/lib/db'
 import { NextResponse } from 'next/server'
-import { CURR_TERM } from '@/lib/terms.ts'
+import { CURR_TERM } from '@/lib/terms'
 
 export const revalidate = 86_400      
+
+export const dynamic = 'force-dynamic'
 
 export async function GET(req: Request) {
   try {

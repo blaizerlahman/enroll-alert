@@ -1,7 +1,7 @@
 import { Pool, type QueryResult, type QueryResultRow } from 'pg'
 import type { Course } from '@/lib/types'
 import pLimit from 'p-limit'
-import { CURR_TERM } from '@/lib/terms.ts'
+import { CURR_TERM } from '@/lib/terms'
 
 type GlobalPool = typeof global & {__dbPool?: Pool }
 const g = global as GlobalPool
@@ -232,17 +232,6 @@ export async function getSubjects(term: number) {
   return result.rows.map(r => r.subject)
 }
 
-
-// get subsections for a given course_id
-export async function getDiscussionSections(courseId: string, term: number) {
-  const result = await query(`
-    SELECT section_num, section_type, open_seats
-    FROM course_sections
-    WHERE section_type IN ('DIS', 'LAB', 'SEM', 'FLD') AND course_id = $1 AND term = $2
-    ORDER BY section_num
-  `, [courseId, term])
-  return result.rows
-}
 
 // get existing breadths
 export async function getBreadths() {

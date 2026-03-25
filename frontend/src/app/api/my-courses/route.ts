@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getAdminAuth } from '@/lib/firebase-admin'
-import { query, CURR_TERM } from '@/lib/db'
+import { query } from '@/lib/db'
 import { IdRow } from '@/lib/types'
 
 export async function GET(req: Request) {

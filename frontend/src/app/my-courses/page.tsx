@@ -48,6 +48,7 @@ export default function MyCoursesPage() {
   const [confirmTarget, setConfirmTarget] = useState<{
     courseId: string
     sectionNum: string
+    term: number
   } | null>(null)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const router = useRouter()
@@ -76,7 +77,7 @@ export default function MyCoursesPage() {
     const user = auth.currentUser
     const token = await user!.getIdToken()
 
-    const res = await fetch('/api/notifications', {
+    const res = await fetch(`/api/notifications?term=${confirmTarget.term}`, {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -170,6 +171,7 @@ export default function MyCoursesPage() {
                         setConfirmTarget({
                           courseId: course.course_id,
                           sectionNum: a.section_num,
+                          term: course.term,
                         })
                         setConfirmOpen(true)
                       }}

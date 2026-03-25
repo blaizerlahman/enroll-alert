@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getCourseSubsections } from '@/lib/db'
-import { CURR_TERM } from '@/lib/terms.ts'
+import { CURR_TERM } from '@/lib/terms'
 
 export const dynamic = 'force-dynamic'
 

@@ -24,7 +24,7 @@ import { Button } from '@/components/ui/button'
 import Navbar from '@/components/Navbar'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import NotifyPopup, { Subsection } from '@/components/NotifyPopup'
-import { CURR_TERM, TERMS } from '@/lib/terms.ts'
+import { TERMS } from '@/lib/terms'
 
 type Course = {
   course_id: string

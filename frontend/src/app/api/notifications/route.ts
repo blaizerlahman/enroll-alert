@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { getAdminAuth } from '@/lib/firebase-admin'
 import { query } from '@/lib/db'
 import { IdRow, CountRow, ExistsRow } from '@/lib/types'
-import { CURR_TERM } from '@/lib/terms.ts'
+import { CURR_TERM } from '@/lib/terms'
 
 export async function POST(req: Request) {
   try {

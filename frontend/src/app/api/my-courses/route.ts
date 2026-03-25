@@ -81,7 +81,7 @@ export async function GET(req: Request) {
           ) ORDER BY s.section_type, s.section_num
         ) AS alerts
       FROM alerts a
-      JOIN secs s USING (course_id, section_num)
+      JOIN secs s ON s.course_id = a.course_id AND s.section_num = a.section_num AND s.term = a.term
       JOIN agg  ag ON ag.course_id = s.course_id
       GROUP BY
         s.course_id,

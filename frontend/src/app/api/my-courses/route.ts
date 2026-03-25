@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getAdminAuth } from '@/lib/firebase-admin'
-import { query, CURR_TERM } from '@/lib/db'
+import { query } from '@/lib/db'
 import { IdRow } from '@/lib/types'
 
 export async function GET(req: Request) {
@@ -34,14 +34,13 @@ export async function GET(req: Request) {
     const alerts = await query(
       `
       WITH alerts AS (
-        SELECT course_id, section_num, alert_type, seat_threshold
+        SELECT course_id, section_num, alert_type, seat_threshold, term
         FROM user_courses
         WHERE user_id = $1
       ),
       secs AS (
         SELECT *
         FROM course_sections
-        WHERE term = $2
       ),
       agg AS (
         SELECT course_id,
@@ -57,6 +56,7 @@ export async function GET(req: Request) {
         s.course_id,
         s.course_name,
         s.course_title,
+        a.term,
         ag.open_sections,
         ag.waitlisted_sections,
         ag.closed_sections,
@@ -81,16 +81,17 @@ export async function GET(req: Request) {
           ) ORDER BY s.section_type, s.section_num
         ) AS alerts
       FROM alerts a
-      JOIN secs s USING (course_id, section_num)
+      JOIN secs s ON s.course_id = a.course_id AND s.section_num = a.section_num AND s.term = a.term
       JOIN agg  ag ON ag.course_id = s.course_id
       GROUP BY
         s.course_id,
         s.course_name,
         s.course_title,
+        a.term, 
         ag.open_sections, ag.waitlisted_sections, ag.closed_sections, ag.total_sections
       ORDER BY s.course_name
       `,
-      [userId, CURR_TERM]
+      [userId]
     );
 
     return NextResponse.json(alerts.rows)

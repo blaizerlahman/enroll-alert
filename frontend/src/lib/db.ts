@@ -1,11 +1,11 @@
 import { Pool, type QueryResult, type QueryResultRow } from 'pg'
 import type { Course } from '@/lib/types'
 import pLimit from 'p-limit'
+import { CURR_TERM } from '@/lib/terms'
 
 type GlobalPool = typeof global & {__dbPool?: Pool }
 const g = global as GlobalPool
 
-export const CURR_TERM = parseInt(process.env.SET_TERM ?? '1264', 10)
 
 export const db = 
   g.__dbPool ?? 
@@ -56,7 +56,7 @@ export async function query<R extends QueryResultRow = QueryResultRow>(
 }
 
 // get all subsections (lectures, discussions) for the given course ID
-export async function getCourseSubsections(courseId: string) {
+export async function getCourseSubsections(courseId: string, term: number) {
   const sql = `
     WITH lec AS (
       SELECT
@@ -99,7 +99,7 @@ export async function getCourseSubsections(courseId: string) {
       ON d.course_id = l.course_id AND d.term = l.term
     ORDER BY l.lecture_num, d.section_num;
   `
-  const { rows } = await query(sql, [courseId, CURR_TERM])
+  const { rows } = await query(sql, [courseId, term])
   return rows
 }
 
@@ -110,12 +110,14 @@ export async function getFilteredCourses<R extends QueryResultRow = Course>({
   subject = '',
   page = 1,
   perPage = 20,
+  term = CURR_TERM,
 }: {
   search?: string
   breadths?: string[]
   subject?: string
   page?: number
   perPage?: number
+  term?: number
 }): Promise<R[]> {
   const offset = (page - 1) * perPage
 
@@ -163,7 +165,7 @@ export async function getFilteredCourses<R extends QueryResultRow = Course>({
     `
   }
 
-  values.push(CURR_TERM)
+  values.push(term)
   whereClauses.push(`cs.term = $${values.length}`)
 
   const baseQuery = `
@@ -219,28 +221,17 @@ export async function getFilteredCourses<R extends QueryResultRow = Course>({
 
 
 // get existing subject
-export async function getSubjects() {
+export async function getSubjects(term: number) {
   const result = await query(`
     SELECT DISTINCT
       TRIM(REGEXP_REPLACE(course_name, '\\s\\d+.*$', '')) AS subject
     FROM course_sections cs
     WHERE cs.course_name IS NOT NULL AND cs.term = $1
     ORDER BY subject
-  `, [CURR_TERM])
+  `, [term])
   return result.rows.map(r => r.subject)
 }
 
-
-// get subsections for a given course_id
-export async function getDiscussionSections(courseId: string) {
-  const result = await query(`
-    SELECT section_num, section_type, open_seats
-    FROM course_sections
-    WHERE section_type IN ('DIS', 'LAB', 'SEM', 'FLD') AND course_id = $1 AND term = $2
-    ORDER BY section_num
-  `, [courseId, CURR_TERM])
-  return result.rows
-}
 
 // get existing breadths
 export async function getBreadths() {

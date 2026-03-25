@@ -1,6 +1,7 @@
 import CoursesClient from './page.client'
 import { getFilteredCourses, getSubjects, getBreadths } from '@/lib/db'
 import type { Course } from '@/lib/types'
+import { CURR_TERM } from '@/lib/terms'
 
 export const dynamic = 'force-dynamic'
 
@@ -12,16 +13,18 @@ export const metadata = {
 
 export default async function Page() {
   const perPage  = 20
+  const term = CURR_TERM
 
   const [courses, subjects, breadths] = await Promise.all([
-    getFilteredCourses<Course>({         
+    getFilteredCourses<Course>({      
       search:    '',
       subject:   '',
       breadths:  [],
       page:      1,
       perPage,
+      term,
     }),
-    getSubjects(),
+    getSubjects(term),
     getBreadths(),
   ])
 
@@ -31,6 +34,7 @@ export default async function Page() {
       initialSubjects={subjects}
       initialBreadths={breadths}
       perPage={perPage}
+      initialTerm={term}
     />
   )
 }

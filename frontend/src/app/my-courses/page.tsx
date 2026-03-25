@@ -1,5 +1,6 @@
 'use client'
 
+import { TERMS } from '@/lib/terms'
 import { useEffect, useState } from 'react'
 import { onAuthStateChanged } from 'firebase/auth'
 import { useRouter } from 'next/navigation'
@@ -32,6 +33,7 @@ type MyCourse = {
   course_id: string
   course_name: string
   course_title: string
+  term: number
   total_open: number
   total_enr: number
   total_cap: number
@@ -46,6 +48,7 @@ export default function MyCoursesPage() {
   const [confirmTarget, setConfirmTarget] = useState<{
     courseId: string
     sectionNum: string
+    term: number
   } | null>(null)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const router = useRouter()
@@ -74,7 +77,7 @@ export default function MyCoursesPage() {
     const user = auth.currentUser
     const token = await user!.getIdToken()
 
-    const res = await fetch('/api/notifications', {
+    const res = await fetch(`/api/notifications?term=${confirmTarget.term}`, {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -126,16 +129,18 @@ export default function MyCoursesPage() {
 
       <main className="pt-24 px-6 space-y-4">
         {courses.map((course) => (
-          <Card key={course.course_id} className="border-2 border-red-200">
-            <CardHeader className="flex justify-between">
+          <Card key={`${course.course_id}-${course.term}`} className="border-2 border-red-200">
+            <CardHeader className="flex justify-between items-center">
               <CardTitle className="text-lg text-red-700">
                 {course.course_name} –{' '}
                 <span className="font-normal text-muted-foreground">
                   {course.course_title}
                 </span>
               </CardTitle>
+              <span className="pointer-events-none inline-flex shrink-0 items-center rounded-md border border-input bg-background px-3 h-8 text-xs sm:text-sm font-medium">
+                {TERMS[course.term]}
+              </span>
             </CardHeader>
-
             <CardContent className="space-y-3">
               <ul className="space-y-2">
                 {course.alerts.map((a) => (
@@ -166,6 +171,7 @@ export default function MyCoursesPage() {
                         setConfirmTarget({
                           courseId: course.course_id,
                           sectionNum: a.section_num,
+                          term: course.term,
                         })
                         setConfirmOpen(true)
                       }}

@@ -14,17 +14,16 @@ import (
 	"github.com/corpix/uarand"
 )
 
-var Term string
-var TermNum int
-
 // initialCourseScrape creates and sends a POST request to UW Madison course
 // search API and retrieves course/subject codes for given amount of courses
 // returns a list of pointers to CoursePackages
-func initialCourseScrape(totalCourses int) ([]*CoursePackage, error) {
+func initialCourseScrape(totalCourses int, term int) ([]*CoursePackage, error) {
+
+	termStr := strconv.Itoa(term)
 
 	// create payload body
 	payload := map[string]interface{}{
-		"selectedTerm": Term,
+		"selectedTerm": termStr,
 		"queryString":  "*",
 		"page":         1,
 		"pageSize":     totalCourses,
@@ -57,7 +56,7 @@ func initialCourseScrape(totalCourses int) ([]*CoursePackage, error) {
 	// generate random user-agent
 	userAgent := uarand.GetRandom()
 
-	referer := fmt.Sprintf("https://public.enroll.wisc.edu/search?term=%s&closed=true", Term)
+	referer := fmt.Sprintf("https://public.enroll.wisc.edu/search?term=%s&closed=true", termStr)
 
   // set headers with random user-agent 
 	request.Header.Set("User-Agent", userAgent)
@@ -99,7 +98,9 @@ func initialCourseScrape(totalCourses int) ([]*CoursePackage, error) {
 // initialCourseLoad connects to Postgres database and inserts course/subject codes and
 // course names pulled from CoursePackages into course table for given term 
 // returns an error if database connection/insertion doesn't work
-func initialCourseLoad(courses []*CoursePackage) error {
+func initialCourseLoad(courses []*CoursePackage, term int) error {
+
+	termStr := strconv.Itoa(term)
 
 	// opening connection
 	connStr := os.Getenv("POSTGRES_URL")
@@ -141,11 +142,11 @@ func initialCourseLoad(courses []*CoursePackage) error {
 				course_name  = EXCLUDED.course_name,
 				course_title = EXCLUDED.course_title,
 				subjecT_id   = EXCLUDED.subject_id;
-		`, course.CourseCode, subjectCode, courseName, course.CourseTitle, TermNum)
+		`, course.CourseCode, subjectCode, courseName, course.CourseTitle, termStr)
 
 		if err != nil {
 			return fmt.Errorf("Insert failed for following course: %s | Course ID: %s | Subject ID: %s | Term %s\nError: %w",
-				courseName, course.CourseCode, course.Subject.SubjectCode, Term, err)
+				courseName, course.CourseCode, course.Subject.SubjectCode, termStr, err)
 		}
 
 		// insert course breadth description/code into breadth table for future querying
@@ -154,7 +155,7 @@ func initialCourseLoad(courses []*CoursePackage) error {
       	INSERT INTO course_breadths (course_id, term, breadth_code, breadth_description)
       	VALUES ($1, $2, $3, $4)
       	ON CONFLICT DO NOTHING;
-    	`, course.CourseCode, TermNum, breadth.BreadthCode, breadth.BreadthDescription)
+    	`, course.CourseCode, term, breadth.BreadthCode, breadth.BreadthDescription)
 			if err != nil {
 				return fmt.Errorf("Insert for course breadth failed for the following course: %s\nBreadth: %s\n%w\n",
 					courseName, breadth.BreadthDescription, err)
@@ -170,16 +171,16 @@ func initialCourseLoad(courses []*CoursePackage) error {
 // initialDriver Driver for initial course scraping/loading, gets course information
 // from initialCourseScrape and loads data into Postgres database with initialCourseLoad
 // returns error if scraping or loading fails
-func InitialDriver(totalCourses int) error {
+func InitialDriver(totalCourses int, term int) error {
 
 	// get course info from scraping api
-	courseCodes, err := initialCourseScrape(totalCourses)
+	courseCodes, err := initialCourseScrape(totalCourses, term)
 	if err != nil {
 		return fmt.Errorf("Error during initial scrape: %w", err)
 	}
 	
 	// insert course data into database
-	err = initialCourseLoad(courseCodes)
+	err = initialCourseLoad(courseCodes, term)
 	if err != nil {
 		return fmt.Errorf("Error during database insertion: %w", err)
 	}

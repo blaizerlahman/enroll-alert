@@ -24,6 +24,7 @@ import { Button } from '@/components/ui/button'
 import Navbar from '@/components/Navbar'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import NotifyPopup, { Subsection } from '@/components/NotifyPopup'
+import { TERMS } from '@/lib/terms'
 
 type Course = {
   course_id: string
@@ -59,11 +60,13 @@ export default function CoursesClient({
   initialSubjects,
   initialBreadths,
   perPage,
+  initialTerm,
 } : {
   initialCourses: Course[]
   initialSubjects: string[]
   initialBreadths: string[]
   perPage: number
+  initialTerm: number
 }) {
   const [user, setUser] = useState<User | null>(null)
   const [showAuth, setShowAuth] = useState(false)
@@ -92,6 +95,11 @@ export default function CoursesClient({
   
   const [busy, setBusy] = useState(false)
 
+  const [selectedTerm, setSelectedTerm] = useState<number>(initialTerm)
+  const [termOpen, setTermOpen] = useState(false)
+  const AVAILABLE_TERMS = [1266, 1272] as const
+
+
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, (u) => setUser(u))
     return () => unsub()
@@ -111,6 +119,7 @@ export default function CoursesClient({
       params.set('breadths', selectedBreadths.join(','))
     params.set('page', page.toString())
     params.set('perPage', perPage.toString())
+    params.set('term', selectedTerm.toString())
 
     fetch(`/api/courses?${params.toString()}`)
       .then(async r => {
@@ -133,18 +142,24 @@ export default function CoursesClient({
           setCourses([])
         }
       })
-  }, [search, subjectFilter, selectedBreadths, page])
+  }, [search, subjectFilter, selectedBreadths, page, selectedTerm])
 
   useEffect(() => {
     fetch('/api/breadths').then((r) => r.json()).then(setBreadths)
   }, [])
   useEffect(() => {
-    fetch('/api/subjects').then((r) => r.json()).then(setSubjects)
+    fetch(`/api/subjects?term=${selectedTerm}`).then((r) => r.json()).then(setSubjects)
   }, [])
 
   useEffect(() => {
     setPage(1)
   }, [search, subjectFilter, selectedBreadths])
+
+  useEffect(() => {
+    setPage(1)
+    setSections({})
+    setExpanded({})
+  }, [selectedTerm])
 
   const toggleBreadth = (b: string) => {
     setSelectedBreadths((prev) =>
@@ -153,16 +168,17 @@ export default function CoursesClient({
   }
 
   const toggle = async (courseId: string) => {
-    if (expanded[courseId]) {
-      setExpanded((p) => ({ ...p, [courseId]: false }))
+    const cacheKey = `${courseId}-${selectedTerm}`
+    if (expanded[cacheKey]) {
+      setExpanded((p) => ({ ...p, [cacheKey]: false }))
       return
     }
-    if (!sections[courseId]) {
-      const res = await fetch(`/api/sections/${courseId}`)
+    if (!sections[cacheKey]) {
+      const res = await fetch(`/api/sections/${courseId}?term=${selectedTerm}`)
       const data = (await res.json()) as Lecture[]
-      setSections((prev) => ({ ...prev, [courseId]: data }))
+      setSections((prev) => ({ ...prev, [cacheKey]: data }))
     }
-    setExpanded((p) => ({ ...p, [courseId]: true }))
+    setExpanded((p) => ({ ...p, [cacheKey]: true }))
   }
 
   return (
@@ -176,6 +192,7 @@ export default function CoursesClient({
           sectionNum={notifyTarget.section}
           subsections={notifyTarget.subsections}
           lectureStatus={notifyTarget.lectureStatus}
+          term={selectedTerm}
         />
       )}
 
@@ -195,44 +212,73 @@ export default function CoursesClient({
       {showAuth && <AuthModal onClose={() => setShowAuth(false)} />}
 
       <main className="pt-24 px-6 space-y-4">
-        <Popover open={open} onOpenChange={setOpen}>
-          <PopoverTrigger asChild>
-            <Button variant="outline" className="w-[200px] justify-start">
-              {subjectFilter ?? 'Select Subject'}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent className="w-[200px] p-0">
-            <Command>
-              <CommandInput placeholder="Search subject…" />
-              <CommandEmpty>No subjects found.</CommandEmpty>
-              <CommandList>
-                <CommandGroup>
-                  <CommandItem
-                    value="all"
-                    onSelect={() => {
-                      setSubjectFilter(null)
-                      setOpen(false)
-                    }}
-                  >
-                    All Subjects
-                  </CommandItem>
-                  {subjects.map((s) => (
+        <div className="flex flex-wrap gap-2">
+          <Popover open={termOpen} onOpenChange={setTermOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="w-[140px] sm:w-[160px] justify-start">
+                {TERMS[selectedTerm] ?? 'Select Term'}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[160px] p-0">
+              <Command>
+                <CommandList>
+                  <CommandGroup>
+                    {AVAILABLE_TERMS.map((t) => (
+                      <CommandItem
+                        key={t}
+                        value={String(t)}
+                        onSelect={() => {
+                          setSelectedTerm(t)
+                          setTermOpen(false)
+                        }}
+                      >
+                        {TERMS[t]}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+          <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="w-[160px] sm:w-[200px] justify-start">
+                {subjectFilter ?? 'Select Subject'}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[200px] p-0">
+              <Command>
+                <CommandInput placeholder="Search subject…" />
+                <CommandEmpty>No subjects found.</CommandEmpty>
+                <CommandList>
+                  <CommandGroup>
                     <CommandItem
-                      key={s}
-                      value={s}
+                      value="all"
                       onSelect={() => {
-                        setSubjectFilter(s)
+                        setSubjectFilter(null)
                         setOpen(false)
                       }}
                     >
-                      {s}
+                      All Subjects
                     </CommandItem>
-                  ))}
-                </CommandGroup>
-              </CommandList>
-            </Command>
-          </PopoverContent>
-        </Popover>
+                    {subjects.map((s) => (
+                      <CommandItem
+                        key={s}
+                        value={s}
+                        onSelect={() => {
+                          setSubjectFilter(s)
+                          setOpen(false)
+                        }}
+                      >
+                        {s}
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
+        </div>
 
         <div className="flex flex-wrap gap-4">
           {breadths.map((b) => (
@@ -291,15 +337,15 @@ export default function CoursesClient({
                     size="sm"
                     onClick={() => toggle(course.course_id)}
                   >
-                    {expanded[course.course_id] ? 'Hide Sections' : 'Show Sections'}
+                    {expanded[`${course.course_id}-${selectedTerm}`] ? 'Hide Sections' : 'Show Sections'}
                   </Button>
                 </CardHeader>
 
                 <CardContent className="space-y-1">
-                  {expanded[course.course_id] &&
-                    sections[course.course_id] && (
+                  {expanded[`${course.course_id}-${selectedTerm}`] &&
+                    sections[`${course.course_id}-${selectedTerm}`] && (
                       <div className="space-y-3 mt-3">
-                        {sections[course.course_id].map((lec) => {
+                        {sections[`${course.course_id}-${selectedTerm}`].map((lec) => {
                           const lecStatus = lec.course_status as 'OPEN' | 'WAITLISTED' | 'CLOSED'
                           const lecHasClosedSub = lec.discussions.some(d => (d.course_status === 'CLOSED' || d.course_status === 'WAITLISTED'))
                           const canNotify = lecStatus === 'CLOSED' || lecStatus === 'WAITLISTED' || lecHasClosedSub

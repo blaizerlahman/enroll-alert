@@ -1,5 +1,6 @@
 import { getFilteredCourses, PoolBusyError } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
+import { CURR_TERM } from '@/lib/terms'
 
 export const revalidate = 300
 
@@ -15,12 +16,16 @@ export async function GET(req: NextRequest) {
   const perPage = parseInt(searchParams.get('perPage') || '25', 10)
 
   try {
+
+    const term = parseInt(searchParams.get('term') ?? String(CURR_TERM), 10)
+
     const courses = await getFilteredCourses({
       search,
       subject,
       breadths,
       page,
       perPage,
+      term,
     })
 
     return NextResponse.json(courses, {

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getCourseSubsections } from '@/lib/db'
+import { CURR_TERM } from '@/lib/terms.ts'
 
 export const dynamic = 'force-dynamic'
 
@@ -46,12 +47,14 @@ type Lecture = {
 }
 
 export async function GET(
-  _req: Request,
+  req: Request,
   ctx: { params: Promise<{ courseId: string }> },
 ) {
   try {
     const { courseId } = await ctx.params
-    const rows = (await getCourseSubsections(courseId)) as Row[]
+
+    const term = parseInt(new URL(req.url).searchParams.get('term') ?? String(CURR_TERM), 10)
+    const rows = (await getCourseSubsections(courseId, term)) as Row[]
 
     const map = new Map<string, Lecture>()
     

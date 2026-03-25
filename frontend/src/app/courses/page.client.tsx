@@ -220,7 +220,7 @@ export default function CoursesClient({
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-[160px] p-0">
-              <Command>
+              <Command value="">
                 <CommandList>
                   <CommandGroup>
                     {AVAILABLE_TERMS.map((t) => (

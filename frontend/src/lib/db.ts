@@ -202,7 +202,7 @@ export async function getFilteredCourses<R extends QueryResultRow = Course>({
         ELSE 'CLOSED'
       END AS course_status
     FROM course_sections cs
-    LEFT JOIN course_alert_stats cas
+    LEFT JOIN course_send_stats cas
       ON cas.course_id = cs.course_id
       AND cas.subject_id = cs.subject_id
     WHERE ${whereClauses.join(' AND ')}

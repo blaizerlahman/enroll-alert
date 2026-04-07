@@ -137,9 +137,31 @@ export default function CoursesClient({
       })
       .then((data) => {
         if (Array.isArray(data)) {
-          setCourses(
-            filtersChanged || page === 1 ? data : (prev) => [...prev, ...data],
-          )
+          setCourses((prev) => {
+            const merged = filtersChanged || page === 1 ? data : [...prev, ...data]
+            const seen = new Map<string, Course>()
+
+            for (const courseItem of merged) {
+              const existing = seen.get(courseItem.course_id)
+              if (!existing) {
+                seen.set(courseItem.course_id, courseItem)
+                continue
+              }
+
+              const existingHasStats = existing.total_sends != null
+              const currentHasStats = courseItem.total_sends != null
+
+              if (currentHasStats && !existingHasStats) {
+                seen.set(courseItem.course_id, courseItem)
+              } else if (currentHasStats === existingHasStats && currentHasStats) {
+                if ((courseItem.total_sends ?? 0) > (existing.total_sends ?? 0)) {
+                  seen.set(courseItem.course_id, courseItem)
+                }
+              }
+            }
+
+            return Array.from(seen.values())
+          })
           setPrevFilters({ search, subjectFilter, selectedBreadths })
         } else {
           console.error('Course fetch error:', data)

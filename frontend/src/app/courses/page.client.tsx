@@ -96,6 +96,7 @@ export default function CoursesClient({
 
   const [open, setOpen] = useState(false)
   const [page, setPage] = useState(1)
+  const [hasMore, setHasMore] = useState(true)
   
   const [busy, setBusy] = useState(false)
 
@@ -162,6 +163,7 @@ export default function CoursesClient({
 
             return Array.from(seen.values())
           })
+          setHasMore(data.length === perPage)
           setPrevFilters({ search, subjectFilter, selectedBreadths })
         } else {
           console.error('Course fetch error:', data)
@@ -222,7 +224,7 @@ export default function CoursesClient({
   }
 
   return (
-    <div>
+    <div className="mb-4">
       <h1 className="sr-only">UW-Madison Course Seat Availability and Notifier</h1>
       {notifyTarget && (
         <NotifyPopup
@@ -499,7 +501,7 @@ export default function CoursesClient({
           })
         )}
 
-        {courses.length === page * perPage && (
+        {hasMore && (
           <Button onClick={() => setPage((p) => p + 1)}>Load More</Button>
         )}
       </main>

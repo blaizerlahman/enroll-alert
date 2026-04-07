@@ -174,6 +174,10 @@ export async function getFilteredCourses<R extends QueryResultRow = Course>({
       cs.course_name,
       cs.course_title,
       cs.subject_id,
+      MAX(cas.total_sends) AS total_sends,
+      MAX(cas.min_time_to_send) AS min_time_to_send,
+      MAX(cas.max_time_to_send) AS max_time_to_send,
+      MAX(cas.avg_time_to_send) AS avg_time_to_send,
       SUM(cs.open_seats) AS total_open_seats,
       SUM(cs.capacity) AS total_capacity,
       SUM(cs.enrolled) AS total_enrolled,
@@ -198,6 +202,9 @@ export async function getFilteredCourses<R extends QueryResultRow = Course>({
         ELSE 'CLOSED'
       END AS course_status
     FROM course_sections cs
+    LEFT JOIN course_send_stats cas
+      ON cas.course_id = cs.course_id
+      AND cas.subject_id = cs.subject_id
     WHERE ${whereClauses.join(' AND ')}
     GROUP BY cs.course_id, cs.course_name, cs.subject_id, cs.course_title, cs.term
     ${breadthFilter}

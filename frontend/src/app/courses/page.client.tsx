@@ -33,6 +33,10 @@ type Course = {
   subject_id: number
   has_subsections: boolean
   course_status?: 'OPEN' | 'WAITLISTED' | 'CLOSED'
+  total_sends?: number
+  min_time_to_send?: number
+  max_time_to_send?: number
+  avg_time_to_send?: number
 }
 
 type Discussion = {
@@ -92,6 +96,7 @@ export default function CoursesClient({
 
   const [open, setOpen] = useState(false)
   const [page, setPage] = useState(1)
+  const [hasMore, setHasMore] = useState(true)
   
   const [busy, setBusy] = useState(false)
 
@@ -133,9 +138,32 @@ export default function CoursesClient({
       })
       .then((data) => {
         if (Array.isArray(data)) {
-          setCourses(
-            filtersChanged || page === 1 ? data : (prev) => [...prev, ...data],
-          )
+          setCourses((prev) => {
+            const merged = filtersChanged || page === 1 ? data : [...prev, ...data]
+            const seen = new Map<string, Course>()
+
+            for (const courseItem of merged) {
+              const existing = seen.get(courseItem.course_id)
+              if (!existing) {
+                seen.set(courseItem.course_id, courseItem)
+                continue
+              }
+
+              const existingHasStats = existing.total_sends != null
+              const currentHasStats = courseItem.total_sends != null
+
+              if (currentHasStats && !existingHasStats) {
+                seen.set(courseItem.course_id, courseItem)
+              } else if (currentHasStats === existingHasStats && currentHasStats) {
+                if ((courseItem.total_sends ?? 0) > (existing.total_sends ?? 0)) {
+                  seen.set(courseItem.course_id, courseItem)
+                }
+              }
+            }
+
+            return Array.from(seen.values())
+          })
+          setHasMore(data.length === perPage)
           setPrevFilters({ search, subjectFilter, selectedBreadths })
         } else {
           console.error('Course fetch error:', data)
@@ -167,6 +195,20 @@ export default function CoursesClient({
     )
   }
 
+  const formatDurationFromHours = (hours: number) => {
+    const totalMinutes = Math.round(hours * 60)
+    const days = Math.floor(totalMinutes / 1440)
+    const hoursRemaining = Math.floor((totalMinutes % 1440) / 60)
+    const minutes = totalMinutes % 60
+
+    const parts: string[] = []
+    if (days > 0) parts.push(`${days}d`)
+    if (hoursRemaining > 0) parts.push(`${hoursRemaining}h`)
+    parts.push(`${minutes}m`)
+
+    return parts.join(' ')
+  }
+
   const toggle = async (courseId: string) => {
     const cacheKey = `${courseId}-${selectedTerm}`
     if (expanded[cacheKey]) {
@@ -182,7 +224,7 @@ export default function CoursesClient({
   }
 
   return (
-    <div>
+    <div className="mb-4">
       <h1 className="sr-only">UW-Madison Course Seat Availability and Notifier</h1>
       {notifyTarget && (
         <NotifyPopup
@@ -345,72 +387,112 @@ export default function CoursesClient({
                   {expanded[`${course.course_id}-${selectedTerm}`] &&
                     sections[`${course.course_id}-${selectedTerm}`] && (
                       <div className="space-y-3 mt-3">
-                        {sections[`${course.course_id}-${selectedTerm}`].map((lec) => {
-                          const lecStatus = lec.course_status as 'OPEN' | 'WAITLISTED' | 'CLOSED'
-                          const lecHasClosedSub = lec.discussions.some(d => (d.course_status === 'CLOSED' || d.course_status === 'WAITLISTED'))
-                          const canNotify = lecStatus === 'CLOSED' || lecStatus === 'WAITLISTED' || lecHasClosedSub
-                          return (
-                            <div key={lec.lecture_num}>
-                              <div className="flex items-center gap-2">
-                                <span className="font-semibold">
-                                  LEC&nbsp;{lec.lecture_num}
-                                  {lec.professor && lec.professor !== ' ' && ` — ${lec.professor}`}
-                                </span>
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                          <div className="flex-1 space-y-3">
+                            {sections[`${course.course_id}-${selectedTerm}`].map((lec) => {
+                              const lecStatus = lec.course_status as 'OPEN' | 'WAITLISTED' | 'CLOSED'
+                              const lecHasClosedSub = lec.discussions.some(d => (d.course_status === 'CLOSED' || d.course_status === 'WAITLISTED'))
+                              const canNotify = lecStatus === 'CLOSED' || lecStatus === 'WAITLISTED' || lecHasClosedSub
+                              return (
+                                <div key={lec.lecture_num}>
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <span className="font-semibold">
+                                      LEC&nbsp;{lec.lecture_num}
+                                      {lec.professor && lec.professor !== ' ' && ` — ${lec.professor}`}
+                                    </span>
 
-                                <span
-                                  className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${
-                                    lecStatus === 'OPEN'
-                                      ? 'border-green-600 text-green-600'
-                                      : lecStatus === 'WAITLISTED'
-                                      ? 'border-yellow-600 text-yellow-600'
-                                      : 'border-red-600 text-red-600'
-                                  }`}
-                                >
-                                  {lecStatus === 'OPEN' ? 'Open' : lecStatus === 'WAITLISTED' ? 'Waitlisted' : 'Closed'}
-                                </span>
+                                    <span
+                                      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${
+                                        lecStatus === 'OPEN'
+                                          ? 'border-green-600 text-green-600'
+                                          : lecStatus === 'WAITLISTED'
+                                          ? 'border-yellow-600 text-yellow-600'
+                                          : 'border-red-600 text-red-600'
+                                      }`}
+                                    >
+                                      {lecStatus === 'OPEN' ? 'Open' : lecStatus === 'WAITLISTED' ? 'Waitlisted' : 'Closed'}
+                                    </span>
 
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() =>
-                                    setNotifyTarget({
-                                      courseId: course.course_id,
-                                      section: lec.lecture_num,
-                                      subsections: lec.discussions.map((d) => ({
-                                        section_num: d.section_num,
-                                        course_status: d.course_status,
-                                      })) as Subsection[],
-                                      lectureStatus: lec.course_status,
-                                    })
-                                  }
-                                  className={`h-6 px-2 py-0 text-xs font-semibold ${
-                                    canNotify ? 'border-blue-600 bg-blue-600/10 text-blue-700 hover:bg-blue-600/20' : 'opacity-50 cursor-not-allowed'
-                                  }`}
-                                  disabled={!canNotify}
-                                >
-                                  Notify&nbsp;Me
-                                </Button>
-                              </div>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() =>
+                                        setNotifyTarget({
+                                          courseId: course.course_id,
+                                          section: lec.lecture_num,
+                                          subsections: lec.discussions.map((d) => ({
+                                            section_num: d.section_num,
+                                            course_status: d.course_status,
+                                          })) as Subsection[],
+                                          lectureStatus: lec.course_status,
+                                        })
+                                      }
+                                      className={`h-6 px-2 py-0 text-xs font-semibold ${
+                                        canNotify ? 'border-blue-600 bg-blue-600/10 text-blue-700 hover:bg-blue-600/20' : 'opacity-50 cursor-not-allowed'
+                                      }`}
+                                      disabled={!canNotify}
+                                    >
+                                      Notify&nbsp;Me
+                                    </Button>
+                                  </div>
 
-                              {lec.discussions.length > 0 && (
-                                <ul className="ml-4 list-disc">
-                                  {lec.discussions.map((d) => {
-                                    const dStatus = d.course_status as 'OPEN' | 'WAITLISTED' | 'CLOSED'
-                                    return (
-                                      <li key={d.section_num}>
-                                        {d.section_type}&nbsp;{d.section_num}
-                                        &nbsp;—&nbsp;Status:&nbsp;
-                                        <span className="font-bold">
-                                          {dStatus === 'OPEN' ? 'Open' : dStatus === 'WAITLISTED' ? 'Waitlisted' : 'Closed'}
-                                        </span>
-                                      </li>
-                                    )
-                                  })}
-                                </ul>
+                                  {lec.discussions.length > 0 && (
+                                    <ul className="ml-4 list-disc">
+                                      {lec.discussions.map((d) => {
+                                        const dStatus = d.course_status as 'OPEN' | 'WAITLISTED' | 'CLOSED'
+                                        return (
+                                          <li key={d.section_num}>
+                                            {d.section_type}&nbsp;{d.section_num}
+                                            &nbsp;—&nbsp;Status:&nbsp;
+                                            <span className="font-bold">
+                                              {dStatus === 'OPEN' ? 'Open' : dStatus === 'WAITLISTED' ? 'Waitlisted' : 'Closed'}
+                                            </span>
+                                          </li>
+                                        )
+                                      })}
+                                    </ul>
+                                  )}
+                                </div>
+                              )
+                            })}
+                          </div>
+
+                          {(course.total_sends != null || course.min_time_to_send != null || course.max_time_to_send != null || course.avg_time_to_send != null) && (
+                            <div className="w-full rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700 sm:w-64 lg:w-56">
+                              {course.total_sends === 0 ? (
+                                <p className="italic text-slate-600">
+                                  No alerts have been sent for this course yet.
+                                </p>
+                              ) : (
+                                <div className="space-y-2">
+                                  <div className="font-semibold text-slate-900 mb-2">Alert stats:</div>
+                                  <div className="flex justify-between">
+                                    <span>Total alerts sent:</span>
+                                    <span className="font-semibold">{course.total_sends ?? '-'} </span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span>Fastest send time:</span>
+                                    <span className="font-semibold">
+                                      {course.min_time_to_send != null ? formatDurationFromHours(course.min_time_to_send) : '-'}
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span>Longest send time:</span>
+                                    <span className="font-semibold">
+                                      {course.max_time_to_send != null ? formatDurationFromHours(course.max_time_to_send) : '-'}
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between">
+                                    <span>Average send time:</span>
+                                    <span className="font-semibold">
+                                      {course.avg_time_to_send != null ? formatDurationFromHours(course.avg_time_to_send) : '-'}
+                                    </span>
+                                  </div>
+                                </div>
                               )}
                             </div>
-                          )
-                        })}
+                          )}
+                        </div>
                       </div>
                     )}
                 </CardContent>
@@ -419,7 +501,7 @@ export default function CoursesClient({
           })
         )}
 
-        {courses.length === page * perPage && (
+        {hasMore && (
           <Button onClick={() => setPage((p) => p + 1)}>Load More</Button>
         )}
       </main>

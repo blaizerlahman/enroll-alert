@@ -3,20 +3,23 @@ import { getAdminAuth } from '@/lib/firebase-admin'
 import { query } from '@/lib/db'
 import { IdRow } from '@/lib/types'
 
+// API route to fetch user's course alerts with current enrollment status
 export async function GET(req: Request) {
   try {
-
+    // Extract and validate Firebase auth token
     const authHeader = req.headers.get('authorization') || ''
     const token = authHeader.replace('Bearer ', '')
     if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    // Verify token and extract user info
     const adminAuth = getAdminAuth()
     const decoded = await adminAuth.verifyIdToken(token, true)
     const uid = decoded.uid
     const email = decoded.email || null
 
+    // Insert or update user record and get user ID
     const userInsert = await query<IdRow>(
       `
       INSERT INTO users (firebase_uid, email)
@@ -31,18 +34,22 @@ export async function GET(req: Request) {
 
     const userId = userInsert.rows[0].id;
 
+    // Query user's alerts with current course/section status
     const alerts = await query(
       `
       WITH alerts AS (
+        -- User's alert configurations
         SELECT course_id, section_num, alert_type, seat_threshold, term
         FROM user_courses
         WHERE user_id = $1
       ),
       secs AS (
+        -- All current course sections
         SELECT *
         FROM course_sections
       ),
       agg AS (
+        -- Aggregate section counts per course (LEC/FLD only)
         SELECT course_id,
                COUNT(*) AS total_sections,
                SUM(CASE WHEN course_status = 'OPEN' THEN 1 ELSE 0 END) AS open_sections,
@@ -61,11 +68,13 @@ export async function GET(req: Request) {
         ag.waitlisted_sections,
         ag.closed_sections,
         ag.total_sections,
+        -- Overall course status based on section availability
         CASE
           WHEN ag.open_sections > 0 THEN 'OPEN'
           WHEN ag.waitlisted_sections > 0 THEN 'WAITLISTED'
           ELSE 'CLOSED'
         END AS course_status,
+        -- JSON array of section alerts with current enrollment data
         json_agg(
           json_build_object(
             'section_num', a.section_num,
@@ -94,6 +103,7 @@ export async function GET(req: Request) {
       [userId]
     );
 
+    // Return course alerts data
     return NextResponse.json(alerts.rows)
   } catch (err) {
     console.error(err)

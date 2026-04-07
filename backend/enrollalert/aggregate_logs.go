@@ -172,33 +172,43 @@ func AggregateLogs(ctx context.Context, pool *pgxpool.Pool) error {
 		return err
 	}
 
-	// query for upating course send times in courses table (eventually to be displayed on site)
+	// query for aggreagting course send times in course_send_stats table 
 	_, err = transact.Exec(ctx, `
-		UPDATE courses c
-		SET
-				total_sends = COALESCE(c.total_sends, 0) + agg.total_sends,
-				total_time_to_send = COALESCE(c.total_time_to_send, 0) + agg.total_time_to_send,
-				min_time_to_send = COALESCE(
-						LEAST(c.min_time_to_send, agg.min_time_to_send),
-						agg.min_time_to_send
-				),
-				max_time_to_send = COALESCE(
-						GREATEST(c.max_time_to_send, agg.max_time_to_send),
-						agg.max_time_to_send
-				)
-		FROM (
-				SELECT
-						course_id,
-						term,
-						COUNT(*) AS total_sends,
-						SUM(time_to_send) AS total_time_to_send,
-						MIN(time_to_send) AS min_time_to_send,
-						MAX(time_to_send) AS max_time_to_send
-				FROM temp_logs
-				WHERE log_type = 'SENT'
-				GROUP BY course_id, term
-		) agg
-		WHERE c.course_id = agg.course_id AND c.term = agg.term;
+    INSERT INTO course_send_stats (
+        course_id,
+        subject_id,
+        course_name,
+        total_sends,
+        total_time_to_send,
+        min_time_to_send,
+        max_time_to_send
+    )
+    SELECT
+        agg.course_id,
+        c.subject_id,
+        c.course_name,
+        agg.total_sends,
+        agg.total_time_to_send,
+        agg.min_time_to_send,
+        agg.max_time_to_send
+    FROM (
+        SELECT
+            course_id,
+            term,
+            COUNT(*)          AS total_sends,
+            SUM(time_to_send) AS total_time_to_send,
+            MIN(time_to_send) AS min_time_to_send,
+            MAX(time_to_send) AS max_time_to_send
+        FROM temp_logs
+        WHERE log_type = 'SENT'
+        GROUP BY course_id, term
+    ) agg
+    JOIN courses c ON c.course_id = agg.course_id AND c.term = agg.term
+    ON CONFLICT (course_id, subject_id) DO UPDATE SET
+        total_sends        = course_send_stats.total_sends + EXCLUDED.total_sends,
+        total_time_to_send = course_send_stats.total_time_to_send + EXCLUDED.total_time_to_send,
+        min_time_to_send   = LEAST(course_send_stats.min_time_to_send, EXCLUDED.min_time_to_send),
+        max_time_to_send   = GREATEST(course_send_stats.max_time_to_send, EXCLUDED.max_time_to_send);
 	`)
 	if err != nil {
 		return err;

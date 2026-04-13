@@ -69,7 +69,7 @@ export async function getCourseSubsections(courseId: string, term: number) {
         course_status,
         term
       FROM course_sections
-      WHERE course_id = $1 AND (section_type = 'LEC' OR section_type = 'FLD' or section_type = 'SEM') AND term = $2
+      WHERE course_id = $1 AND (section_type = 'LEC' OR section_type = 'FLD' OR section_type = 'SEM' OR section_type = 'LAB') AND term = $2
     ),
     dis AS (
       SELECT
@@ -122,7 +122,7 @@ export async function getFilteredCourses<R extends QueryResultRow = Course>({
   const offset = (page - 1) * perPage
 
   const values: (string|number|null|boolean)[] = []
-  const whereClauses: string[] = [`(cs.section_type = 'LEC' OR cs.section_type = 'FLD' OR cs.section_type = 'SEM')`]
+  const whereClauses: string[] = [`(cs.section_type = 'LEC' OR cs.section_type = 'FLD' OR cs.section_type = 'SEM' OR cs.section_type = 'LAB')`]
   let orderByClause = ''
   
   // require non-empty course title (usually empty course titles are grad school courses that don't get captured in initial run)

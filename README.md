@@ -6,7 +6,7 @@ It is powered by a scheduled Go scraper that grabs real time course seat info wh
 
 EnrollAlert is inspired by [Madgrades](https://madgrades.com/) and strives to make the course enrollment process easier and stress-free for UW-Madison students.
 
-As of November 2025, a large refactor has been implemented which moved EnrollAlert onto using a private API. Because of this, the current backend implementation is not available publicly. To see the previous backend version, refer to the instructions in **Local Development** and also check out the [deprecated README](deprecated-README.md) for a nice architectural diagram of it.
+As of November 2025, a large refactor has been implemented which moved EnrollAlert onto using a private API. Because of this the current backend implementation is not available publicly. To see the previous backend version, refer to the instructions in **Local Development** and also check out the [deprecated README](deprecated-README.md) for a nice architectural diagram of it.
 
 ## Features
 * **Real-time seat tracking**: Scrapes UW-Madison's Course Search & Enroll API on a configurable schedule and dynamically updates the course database.

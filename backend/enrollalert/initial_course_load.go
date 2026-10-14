@@ -10,86 +10,114 @@ import (
 	"encoding/json"
   "io/ioutil"
 	"net/http"
+	"time"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/corpix/uarand"
 )
 
-// initialCourseScrape creates and sends a POST request to UW Madison course
-// search API and retrieves course/subject codes for given amount of courses
+// search API returns at most this many hits per request regardless of requested pageSize
+const initialPageSize = 500
+
+// initialCourseScrape creates and sends POST requests to UW Madison course
+// search API, paging through results, and retrieves course/subject codes for up to totalCourses courses
 // returns a list of pointers to CoursePackages
 func initialCourseScrape(totalCourses int, term int) ([]*CoursePackage, error) {
 
 	termStr := strconv.Itoa(term)
-
-	// create payload body
-	payload := map[string]interface{}{
-		"selectedTerm": termStr,
-		"queryString":  "*",
-		"page":         1,
-		"pageSize":     totalCourses,
-		"sortOrder":    "SCORE",
-
-		// filter to receive response with course id
-		"filters": []interface{}{
-			map[string]interface{}{
-				"has_child": map[string]interface{}{
-					"type":   "enrollmentPackage",
-					"query": map[string]interface{}{
-						"match_all": map[string]interface{}{},
-
-	},},},},}
-
-	// assmeble request body
-	reqBody, err := json.Marshal(payload)
-	if err != nil {
-		return nil, fmt.Errorf("Error with creating request reqBody: %w\n", err)
-	}
-
-	reqURL := "https://public.enroll.wisc.edu/api/search/v1"
-
-	// create POST request with request URL
-	request, err := http.NewRequest("POST", reqURL, bytes.NewBuffer(reqBody))
-	if err != nil {
-		return nil, fmt.Errorf("Error while creating POST request: %w\n", err)
-	}
-
-	// generate random user-agent
-	userAgent := uarand.GetRandom()
-
 	referer := fmt.Sprintf("https://public.enroll.wisc.edu/search?term=%s&closed=true", termStr)
-
-  // set headers with random user-agent 
-	request.Header.Set("User-Agent", userAgent)
-	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("Accept", "application/json")
-	request.Header.Set("Origin", "https://public.enroll.wisc.edu")
-	request.Header.Set("Referer", referer) 
-
+	reqURL := "https://public.enroll.wisc.edu/api/search/v1"
 	client := &http.Client{}
 
-	// send request and receive json response
-	response, err := client.Do(request)
-	if err != nil {
-	  return nil, fmt.Errorf("Error sending request: %w\n", err)
-	}
-	defer response.Body.Close()
-
-	// read json response
-	respBody, _ := ioutil.ReadAll(response.Body)
-
-	// parse and structure response as a list of CoursePackages
-	var respStruct CourseResponse
-	if err := json.Unmarshal(respBody, &respStruct); err != nil {
-		return nil, fmt.Errorf("Error with json unmarshal: %w\n", err)
-	}
-
-	// extract hits
-	hits := respStruct.Hits
-
-	// create list of pointers to hit structs
 	var hitPtrs []*CoursePackage
-	for _, hit := range hits {
-		hitPtrs = append(hitPtrs, &hit)
+	found := 0
+
+	for page := 1; len(hitPtrs) < totalCourses; page++ {
+
+		// create payload body
+		payload := map[string]interface{}{
+			"selectedTerm": termStr,
+			"queryString":  "*",
+			"page":         page,
+			"pageSize":     initialPageSize,
+			"sortOrder":    "SCORE",
+
+			// filter to receive response with course id
+			"filters": []interface{}{
+				map[string]interface{}{
+					"has_child": map[string]interface{}{
+						"type":   "enrollmentPackage",
+						"query": map[string]interface{}{
+							"match_all": map[string]interface{}{},
+
+		},},},},}
+
+		// assmeble request body
+		reqBody, err := json.Marshal(payload)
+		if err != nil {
+			return nil, fmt.Errorf("Error with creating request reqBody (page %d): %w\n", page, err)
+		}
+
+		// create POST request with request URL
+		request, err := http.NewRequest("POST", reqURL, bytes.NewBuffer(reqBody))
+		if err != nil {
+			return nil, fmt.Errorf("Error while creating POST request (page %d): %w\n", page, err)
+		}
+
+		// set headers with random user-agent
+		request.Header.Set("User-Agent", uarand.GetRandom())
+		request.Header.Set("Content-Type", "application/json")
+		request.Header.Set("Accept", "application/json")
+		request.Header.Set("Origin", "https://public.enroll.wisc.edu")
+		request.Header.Set("Referer", referer)
+
+		// send request and receive json response
+		response, err := client.Do(request)
+		if err != nil {
+			return nil, fmt.Errorf("Error sending request (page %d): %w\n", page, err)
+		}
+
+		// read json response
+		respBody, err := ioutil.ReadAll(response.Body)
+		response.Body.Close()
+		if err != nil {
+			return nil, fmt.Errorf("Error reading response (page %d): %w\n", page, err)
+		}
+		if response.StatusCode != http.StatusOK {
+			return nil, fmt.Errorf("Unexpected status %d (page %d): %s\n", response.StatusCode, page, string(respBody))
+		}
+
+		// parse and structure response as a list of CoursePackages
+		var respStruct CourseResponse
+		if err := json.Unmarshal(respBody, &respStruct); err != nil {
+			return nil, fmt.Errorf("Error with json unmarshal (page %d): %w\n", page, err)
+		}
+
+		// create list of pointers to hit structs
+		for i := range respStruct.Hits {
+			hitPtrs = append(hitPtrs, &respStruct.Hits[i])
+		}
+
+		found = respStruct.Found
+		log.Printf("Initial scrape page %d: %d courses (%d/%d found)", page, len(respStruct.Hits), len(hitPtrs), found)
+
+		// stop once a short page comes back or all found courses have been retrieved
+		if len(respStruct.Hits) < initialPageSize || len(hitPtrs) >= found {
+			if len(hitPtrs) < found && len(hitPtrs) < totalCourses {
+				log.Printf("WARNING: retrieved %d of %d found courses", len(hitPtrs), found)
+			}
+			break
+		}
+
+		// throttle between pages so as to not overload search API
+		time.Sleep(3 * time.Second)
+	}
+
+	// trim to requested course count
+	if found > totalCourses {
+		log.Printf("WARNING: count %d is below %d courses found, only loading first %d (raise -count/COUNT)", totalCourses, found, totalCourses)
+	}
+	if len(hitPtrs) > totalCourses {
+		hitPtrs = hitPtrs[:totalCourses]
 	}
 
 	return hitPtrs, nil

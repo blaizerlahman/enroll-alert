@@ -32,7 +32,8 @@ type CoursePackage struct {
 
 // structure of overall response
 type CourseResponse struct {
-	Hits []CoursePackage  `json:"hits"`
+	Found int             `json:"found"`
+	Hits  []CoursePackage `json:"hits"`
 }
 
 // getReferrer appends course page URL with encoded course name 

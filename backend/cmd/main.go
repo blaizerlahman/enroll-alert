@@ -48,7 +48,7 @@ func parseTerms(terms string) []int {
 
 func main() {
 	initialFlag := flag.Bool("init", false, "run initial course loading")
-	countFlag   := flag.Int("count", 5666, "number of courses to initially load")
+	countFlag   := flag.Int("count", 6500, "max number of courses to initially load")
 	termsFlag   := flag.String("terms", "1274", "comma-separated term numbers to load courses for")
 	windowFlag  := flag.Int("window", 12, "minutes back to look for course changes (raise for one-time seeding of a new term)")
 	flag.Parse()

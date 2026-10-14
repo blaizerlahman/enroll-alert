@@ -20,7 +20,7 @@ import (
 
 const (
 	defaultInit   	 = false
-	defaultCount  	 = 5666
+	defaultCount  	 = 6500
 	defaultTerms  	 = "1274"
 	defaultBatchSize = 50
 	defaultDelayTime = 10

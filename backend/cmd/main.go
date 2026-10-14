@@ -49,7 +49,7 @@ func parseTerms(terms string) []int {
 func main() {
 	initialFlag := flag.Bool("init", false, "run initial course loading")
 	countFlag   := flag.Int("count", 5666, "number of courses to initially load")
-	termsFlag   := flag.String("terms", "1266,1272", "comma-separated term numbers to load courses for")
+	termsFlag   := flag.String("terms", "1274", "comma-separated term numbers to load courses for")
 	flag.Parse()
 
 	terms := parseTerms(*termsFlag)

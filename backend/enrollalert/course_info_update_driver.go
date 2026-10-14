@@ -162,14 +162,14 @@ func updateSeatInfoDB(pool *pgxpool.Pool, coursesSeatInfo []*Course, term int) e
 }
 
 // CourseInfoUpdateDriver Scraper recent changes in course enrollment info from UW Madison enrollment API. Uses scraped data to update Postgres database for
-// specified courses
+// specified courses. windowMin is how many minutes back to look for changes (12 for regular runs, larger for one-time seeding of a new term)
 // Returns error on failure
-func CourseInfoUpdateDriver(pool *pgxpool.Pool, term int) error {
+func CourseInfoUpdateDriver(pool *pgxpool.Pool, term int, windowMin int) error {
 
 	termStr := strconv.Itoa(term)
 
-	// query API for all recently changed courses in last 12 min
-	coursesQuery, err := enrollalertquery.QueryRecentChanges(200, 12, termStr)
+	// query API for all courses changed in last windowMin minutes
+	coursesQuery, err := enrollalertquery.QueryRecentChanges(200, windowMin, termStr)
 	if err != nil {
 		return fmt.Errorf("Failed to query for recent course changes: %w", err)
 	}

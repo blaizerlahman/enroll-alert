@@ -50,14 +50,19 @@ func main() {
 	initialFlag := flag.Bool("init", false, "run initial course loading")
 	countFlag   := flag.Int("count", 5666, "number of courses to initially load")
 	termsFlag   := flag.String("terms", "1274", "comma-separated term numbers to load courses for")
+	windowFlag  := flag.Int("window", 12, "minutes back to look for course changes (raise for one-time seeding of a new term)")
 	flag.Parse()
+
+	if *windowFlag <= 0 {
+		log.Fatalf("Invalid -window: %d (must be > 0)", *windowFlag)
+	}
 
 	terms := parseTerms(*termsFlag)
 	if len(terms) == 0 {
 		log.Fatalf("No valid terms parsed from: %s", *termsFlag)
 	}
 
-	log.Printf("Startup: init=%t, count=%d, terms=%v", *initialFlag, *countFlag, terms)
+	log.Printf("Startup: init=%t, count=%d, terms=%v, window=%dm", *initialFlag, *countFlag, terms, *windowFlag)
 
 	ip, err := getOutboundIP(context.Background())
 	if err != nil {
@@ -104,7 +109,7 @@ func main() {
 		go func() {
 			defer wg.Done()
 
-			if err := enrollalert.CourseInfoUpdateDriver(pool, term); err != nil {
+			if err := enrollalert.CourseInfoUpdateDriver(pool, term, *windowFlag); err != nil {
 				mu.Lock()
 				errs = append(errs, fmt.Errorf("term %d update: %w", term, err))
 				mu.Unlock()

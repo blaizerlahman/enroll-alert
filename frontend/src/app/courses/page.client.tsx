@@ -102,7 +102,7 @@ export default function CoursesClient({
 
   const [selectedTerm, setSelectedTerm] = useState<number>(initialTerm)
   const [termOpen, setTermOpen] = useState(false)
-  const AVAILABLE_TERMS = [1266, 1272] as const
+  const AVAILABLE_TERMS = [1274] as const
 
 
   useEffect(() => {

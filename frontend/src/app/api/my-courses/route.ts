@@ -49,15 +49,16 @@ export async function GET(req: Request) {
         FROM course_sections
       ),
       agg AS (
-        -- Aggregate section counts per course (LEC/FLD only)
+        -- Aggregate section counts per course and term (LEC/FLD only)
         SELECT course_id,
+               term,
                COUNT(*) AS total_sections,
                SUM(CASE WHEN course_status = 'OPEN' THEN 1 ELSE 0 END) AS open_sections,
                SUM(CASE WHEN course_status = 'WAITLISTED' THEN 1 ELSE 0 END) AS waitlisted_sections,
                SUM(CASE WHEN course_status = 'CLOSED' THEN 1 ELSE 0 END) AS closed_sections
         FROM secs
         WHERE section_type = 'LEC' OR section_type = 'FLD'
-        GROUP BY course_id
+        GROUP BY course_id, term
       )
       SELECT
         s.course_id,
@@ -91,7 +92,7 @@ export async function GET(req: Request) {
         ) AS alerts
       FROM alerts a
       JOIN secs s ON s.course_id = a.course_id AND s.section_num = a.section_num AND s.term = a.term
-      JOIN agg  ag ON ag.course_id = s.course_id
+      JOIN agg  ag ON ag.course_id = s.course_id AND ag.term = s.term
       GROUP BY
         s.course_id,
         s.course_name,

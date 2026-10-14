@@ -13,12 +13,12 @@ export default function BreakPopup() {
   const [open, setOpen] = useState(false)
 
   useEffect(() => {
-    const closed = localStorage.getItem('enrollalert:breakClosed')
+    const closed = localStorage.getItem('enrollalert:breakClosed:1274')
     if (!closed) setOpen(true)
   }, [])
 
   const close = () => {
-    localStorage.setItem('enrollalert:breakClosed', '1')
+    localStorage.setItem('enrollalert:breakClosed:1274', '1')
     setOpen(false)
   }
 
@@ -33,12 +33,12 @@ export default function BreakPopup() {
             height={84}
           />
           <DialogTitle className="text-center text-2xl font-bold text-red-700">
-            EnrollAlert is back for Summer/Fall 2026 enrollment
+            EnrollAlert is ready for Spring 2027 enrollment
           </DialogTitle>
         </DialogHeader>
 
         <p className="py-4 text-center text-m text-muted-foreground">
-          EnrollAlert is updated for Summer and Fall 2026! Set any alerts you need! If you cannot find a class, please fill out a feedback form.
+          Spring 2027 courses are now available on EnrollAlert! Set any alerts you need! If you cannot find a class, please fill out a feedback form.
         </p>
       </DialogContent>
     </Dialog>

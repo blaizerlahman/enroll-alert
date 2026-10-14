@@ -3,6 +3,7 @@ export const TERMS: Record<number, string> = {
   1264: 'Spring 2026',
   1266: 'Summer 2026',
   1272: 'Fall 2026',
+  1274: 'Spring 2027',
 } as const
 
-export const CURR_TERM = parseInt(process.env.SET_TERM ?? '1272', 10)
+export const CURR_TERM = parseInt(process.env.SET_TERM ?? '1274', 10)

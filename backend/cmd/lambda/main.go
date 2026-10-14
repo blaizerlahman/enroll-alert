@@ -21,9 +21,10 @@ import (
 const (
 	defaultInit   	 = false
 	defaultCount  	 = 5666
-	defaultTerms  	 = "1266,1272"
+	defaultTerms  	 = "1274"
 	defaultBatchSize = 50
 	defaultDelayTime = 10
+	defaultWindow    = 12
 )
 
 var (
@@ -32,6 +33,7 @@ var (
 	termsFlag     = flag.String("terms", defaultTerms, "")
 	batchSizeFlag = flag.Int("batchsize", defaultBatchSize, "")
 	delayTimeFlag = flag.Int("delay", defaultDelayTime, "")
+	windowFlag    = flag.Int("window", defaultWindow, "")
 	parseOnce     sync.Once
 )
 
@@ -41,6 +43,7 @@ type Config struct {
 	terms       []int
 	batchSize   int
 	delayTime   int
+	window      int
 	postgresURL string
 }
 
@@ -106,12 +109,19 @@ func loadConfig() Config {
 		parsedTermsFlag = parseTerms(defaultTerms)
 	}
 
+	// minutes back to look for course changes, resort to default if invalid
+	window := envInt("WINDOW", *windowFlag)
+	if window <= 0 {
+		window = defaultWindow
+	}
+
 	return Config{
 		init:        envBool("INIT", *initFlag),
 		count:       envInt("COUNT", *countFlag),
 		terms:       parsedTermsFlag,
 		batchSize:   envInt("BATCHSIZE", *batchSizeFlag),
 		delayTime:   envInt("DELAYTIME", *delayTimeFlag),
+		window:      window,
 		postgresURL: os.Getenv("POSTGRES_URL"),
 	}
 }
@@ -162,7 +172,7 @@ func run(ctx context.Context, config Config) error {
 			defer wg.Done()
 
 			// scrape API for course section info and update DB
-			if err := enrollalert.CourseInfoUpdateDriver(pool, term); err != nil {
+			if err := enrollalert.CourseInfoUpdateDriver(pool, term, config.window); err != nil {
 				mu.Lock()
 				errs = append(errs, fmt.Errorf("TERM: %d UPDATE: %w", term, err))
 				mu.Unlock()

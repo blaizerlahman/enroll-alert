@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"strconv"
+	"time"
 	"github.com/blaizerlahman/enroll-alert-query/enrollalertquery"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -176,6 +177,24 @@ func CourseInfoUpdateDriver(pool *pgxpool.Pool, term int, windowMin int) error {
 
 	log.Printf("DEBUG: Total courses retrieved from API: %d", len(coursesQuery))
 
+	coursesSeatInfo := convertQueryCourses(coursesQuery)
+
+	log.Printf("DEBUG: Total sections to insert/update: %d", len(coursesSeatInfo))
+
+	// update seat info in DB
+	if err := updateSeatInfoDB(pool, coursesSeatInfo, term); err != nil {
+		return fmt.Errorf("Failed to update DB with course info: %w", err)
+	}
+
+	log.Println("Uploaded seat info to DB")
+
+	return nil
+}
+
+// convertQueryCourses Converts courses returned by enrollalertquery into the Course structs used for DB updates.
+// Returns converted courses
+func convertQueryCourses(coursesQuery []*enrollalertquery.Course) []*Course {
+
 	var coursesSeatInfo []*Course
 	for _, queryCourse := range coursesQuery {
 		course := &Course{
@@ -226,14 +245,84 @@ func CourseInfoUpdateDriver(pool *pgxpool.Pool, term int, windowMin int) error {
 		coursesSeatInfo = append(coursesSeatInfo, course)
 	}
 
-	log.Printf("DEBUG: Total sections to insert/update: %d", len(coursesSeatInfo))
+	return coursesSeatInfo
+}
 
-	// update seat info in DB
-	if err := updateSeatInfoDB(pool, coursesSeatInfo, term); err != nil {
-		return fmt.Errorf("Failed to update DB with course info: %w", err)
+// MissingSectionsDriver Fills in sections only for courses in the courses table that have no course_sections rows for the term.
+// Queries the API batchSize course IDs at a time and writes each batch to the DB before fetching the next, so an interrupted
+// run keeps its progress and rerunning only fetches courses that are still missing.
+// Returns error on failure
+func MissingSectionsDriver(pool *pgxpool.Pool, term int, batchSize int) error {
+
+	termStr := strconv.Itoa(term)
+
+	missingIDs, err := getMissingSectionCourseIDs(pool, term)
+	if err != nil {
+		return err
 	}
 
-	log.Println("Uploaded seat info to DB")
+	numBatches := (len(missingIDs) + batchSize - 1) / batchSize
+	log.Printf("Found %d courses with no sections for term %d (%d batches of up to %d)", len(missingIDs), term, numBatches, batchSize)
+
+	for batchNum, i := 1, 0; i < len(missingIDs); batchNum, i = batchNum+1, i+batchSize {
+
+		batch := missingIDs[i:min(i+batchSize, len(missingIDs))]
+
+		// query API for all packages belonging to this batch of courses
+		coursesQuery, err := enrollalertquery.QueryCourses(200, termStr, batch)
+		if err != nil {
+			return fmt.Errorf("Failed to query batch %d/%d (course IDs %s-%s): %w", batchNum, numBatches, batch[0], batch[len(batch)-1], err)
+		}
+
+		log.Printf("Batch %d/%d: %d packages retrieved for %d courses", batchNum, numBatches, len(coursesQuery), len(batch))
+
+		// write batch to DB before fetching next so progress survives an interrupted run
+		if err := updateSeatInfoDB(pool, convertQueryCourses(coursesQuery), term); err != nil {
+			return fmt.Errorf("Failed to update DB with batch %d/%d: %w", batchNum, numBatches, err)
+		}
+
+		// throttle between batches so as to not overload search API
+		if i+batchSize < len(missingIDs) {
+			time.Sleep(3 * time.Second)
+		}
+	}
+
+	stillMissing, err := getMissingSectionCourseIDs(pool, term)
+	if err != nil {
+		return err
+	}
+	log.Printf("%d courses still have no sections for term %d (API returned no packages under their course ID)", len(stillMissing), term)
 
 	return nil
+}
+
+// getMissingSectionCourseIDs Gets IDs of courses in the courses table with no course_sections rows for the term.
+// Returns course IDs in ascending order
+func getMissingSectionCourseIDs(pool *pgxpool.Pool, term int) ([]string, error) {
+
+	rows, err := pool.Query(context.Background(), `
+		SELECT c.course_id
+		FROM courses c
+		WHERE c.term = $1
+		  AND NOT EXISTS (
+			SELECT 1 FROM course_sections s
+			WHERE s.term = c.term AND s.course_id = c.course_id
+		  )
+		ORDER BY c.course_id
+	`, term)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to query courses missing sections for term %d: %w", term, err)
+	}
+	defer rows.Close()
+
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+
+	return ids, rows.Err()
 }

@@ -7,7 +7,7 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.36.5
 	github.com/aws/aws-sdk-go-v2/config v1.29.17
 	github.com/aws/aws-sdk-go-v2/service/sesv2 v1.45.2
-	github.com/blaizerlahman/enroll-alert-query v0.1.1-0.20261015021625-2d77104dae6a
+	github.com/blaizerlahman/enroll-alert-query v0.1.1-0.20261015025020-88589343bf0c
 	github.com/corpix/uarand v0.2.0
 	github.com/jackc/pgx/v5 v5.7.5
 )

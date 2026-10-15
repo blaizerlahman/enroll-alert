@@ -51,6 +51,7 @@ func main() {
 	countFlag   := flag.Int("count", 6500, "max number of courses to initially load")
 	termsFlag   := flag.String("terms", "1274", "comma-separated term numbers to load courses for")
 	windowFlag  := flag.Int("window", 12, "minutes back to look for course changes (raise for one-time seeding of a new term)")
+	missingFlag := flag.Bool("missing", false, "only fetch sections for courses that have none in the DB, writing after each batch")
 	flag.Parse()
 
 	if *windowFlag <= 0 {
@@ -62,7 +63,7 @@ func main() {
 		log.Fatalf("No valid terms parsed from: %s", *termsFlag)
 	}
 
-	log.Printf("Startup: init=%t, count=%d, terms=%v, window=%dm", *initialFlag, *countFlag, terms, *windowFlag)
+	log.Printf("Startup: init=%t, missing=%t, count=%d, terms=%v, window=%dm", *initialFlag, *missingFlag, *countFlag, terms, *windowFlag)
 
 	ip, err := getOutboundIP(context.Background())
 	if err != nil {
@@ -90,6 +91,17 @@ func main() {
 		log.Fatalf("Failed to connect to DB: %v", err)
 	}
 	defer pool.Close()
+
+	// only fill in sections for courses that have none if specified
+	if *missingFlag {
+		for _, term := range terms {
+			if err := enrollalert.MissingSectionsDriver(pool, term, 100); err != nil {
+				log.Fatalf("Error filling missing sections for term %d: %v", term, err)
+			}
+			log.Printf("Missing section fill for term %d successful (%s)", term, time.Since(timeStart))
+		}
+		return
+	}
 
 	// create email client
 	mail, err := enrollalert.NewEmailClient(context.Background(), os.Getenv("EMAIL_FROM"), os.Getenv("ALERT_TEMPLATE"))
